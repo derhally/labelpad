@@ -1,0 +1,32 @@
+{
+  "name": "niimbot-studio",
+  "version": "0.1.0",
+  "description": "A modern desktop app for the Niimbot D11 label printer",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "postinstall": "install-electron",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "author": "Zeid",
+  "license": "MIT",
+  "dependencies": {
+    "@mmote/niimbluelib": "0.47.1",
+    "lucide-react": "1.61.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/web-bluetooth": "0.0.22",
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "45.0.0",
+    "electron-vite": "6.0.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.5"
+  }
+}
