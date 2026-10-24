@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use niimbot::ble::{Bluetooth, FoundPrinter};
 use niimbot::{Bitmap, Client, ClientEvent, PrintOptions, PrinterInfo};
-use tauri::{AppHandle, Emitter, State};
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::Mutex;
 
 /// Bluetooth adapter and the connected printer, shared by every command.
@@ -118,6 +119,80 @@ async fn label_write(path: String, contents: String) -> Result<(), String> {
     tokio::fs::rename(&tmp, &path).await.map_err(|e| format!("Couldn't save {path}: {e}"))
 }
 
+/// Font families installed on this computer, sorted, for the font picker.
+#[tauri::command]
+async fn system_fonts() -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let mut db = fontdb::Database::new();
+        db.load_system_fonts();
+        let mut names: Vec<String> = db
+            .faces()
+            .filter_map(|f| f.families.first().map(|(name, _)| name.clone()))
+            // Names starting with "." are hidden system fonts on macOS.
+            .filter(|n| !n.starts_with('.'))
+            .collect();
+        names.sort_by_key(|n| n.to_lowercase());
+        names.dedup();
+        names
+    })
+    .await
+    .unwrap_or_default()
+}
+
+/// A label saved as a template, in the app's data folder.
+#[derive(Serialize)]
+struct Template {
+    id: String,
+    contents: String,
+}
+
+fn templates_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?.join("templates");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Couldn't create the templates folder: {e}"))?;
+    Ok(dir)
+}
+
+/// Template ids are file names, so keep them to one safe path component.
+fn template_path(app: &AppHandle, id: &str) -> Result<std::path::PathBuf, String> {
+    if id.is_empty() || id.contains(['/', '\\', ':']) || id.starts_with('.') {
+        return Err("Invalid template name".into());
+    }
+    Ok(templates_dir(app)?.join(format!("{id}.niimbot")))
+}
+
+#[tauri::command]
+async fn templates_list(app: AppHandle) -> Result<Vec<Template>, String> {
+    let mut out = Vec::new();
+    for entry in std::fs::read_dir(templates_dir(&app)?).map_err(|e| e.to_string())?.flatten() {
+        let path = entry.path();
+        if path.extension().is_some_and(|e| e == "niimbot") {
+            if let (Some(id), Ok(contents)) = (path.file_stem().and_then(|s| s.to_str()), std::fs::read_to_string(&path)) {
+                out.push(Template { id: id.to_string(), contents });
+            }
+        }
+    }
+    out.sort_by_key(|t| t.id.to_lowercase());
+    Ok(out)
+}
+
+/// Save a template, returning its id. An existing template with the same id is replaced.
+#[tauri::command]
+async fn template_save(app: AppHandle, name: String, contents: String) -> Result<String, String> {
+    let id: String = name
+        .trim()
+        .chars()
+        .map(|c| if c.is_alphanumeric() || " -_()".contains(c) { c } else { '_' })
+        .collect();
+    let id = id.trim().to_string();
+    std::fs::write(template_path(&app, &id)?, contents).map_err(|e| format!("Couldn't save the template: {e}"))?;
+    Ok(id)
+}
+
+#[tauri::command]
+async fn template_delete(app: AppHandle, id: String) -> Result<(), String> {
+    std::fs::remove_file(template_path(&app, &id)?).map_err(|e| format!("Couldn't delete the template: {e}"))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
@@ -131,7 +206,11 @@ pub fn run() {
             printer_disconnect,
             printer_print,
             label_read,
-            label_write
+            label_write,
+            system_fonts,
+            templates_list,
+            template_save,
+            template_delete
         ])
         .run(tauri::generate_context!())
         .expect("error while running Niimbot Studio");

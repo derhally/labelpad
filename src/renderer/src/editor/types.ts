@@ -19,10 +19,10 @@ export type ElementBase = {
 };
 
 export type TextAlign = "left" | "center" | "right";
+export type VerticalAlign = "top" | "middle" | "bottom";
 
-export type TextElement = ElementBase & {
-  type: "text";
-  text: string;
+/** Font and layout shared by text and date/time elements. */
+export type TextStyle = {
   fontFamily: string;
   /** In dots. Ignored while autoFit is on. */
   fontSize: number;
@@ -30,9 +30,30 @@ export type TextElement = ElementBase & {
   bold: boolean;
   italic: boolean;
   align: TextAlign;
+  valign: VerticalAlign;
   /** White text on a black box. */
   invert: boolean;
 };
+
+export type TextElement = ElementBase &
+  TextStyle & {
+    type: "text";
+    text: string;
+  };
+
+/** The date (and optionally time) when the label is printed. */
+export type DateTimeElement = ElementBase &
+  TextStyle & {
+    type: "datetime";
+    /** Token pattern such as "DD/MM/YYYY" (see dateFormat.ts), "locale" for the system format, or "" for no date. */
+    dateFormat: string;
+    showTime: boolean;
+    hour12: boolean;
+    /** Text before the date, such as "Packed ". */
+    prefix: string;
+    /** Days added to the print date, for use-by labels. */
+    offsetDays: number;
+  };
 
 export type ImageElement = ElementBase & {
   type: "image";
@@ -75,7 +96,7 @@ export type ShapeElement = ElementBase & {
   cornerRadius: number;
 };
 
-export type LabelElement = TextElement | ImageElement | BarcodeElement | QrElement | IconElement | ShapeElement;
+export type LabelElement = TextElement | DateTimeElement | ImageElement | BarcodeElement | QrElement | IconElement | ShapeElement;
 export type ElementType = LabelElement["type"];
 
 /** Elements whose content would distort if stretched. */

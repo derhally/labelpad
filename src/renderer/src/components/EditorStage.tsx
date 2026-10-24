@@ -14,6 +14,8 @@ type Props = {
   onGestureStart: () => void;
   onEditText: (id: string) => void;
   onRendered: (canvas: HTMLCanvasElement, issues: RenderIssues) => void;
+  /** Changes each minute while the label shows the time, to redraw it. */
+  clock: number;
 };
 
 const MAX_ZOOM = 8;
@@ -23,7 +25,7 @@ const STAGE_PADDING = 96;
  * The label canvas plus an invisible box per element that Moveable uses for
  * dragging, resizing and rotating. The canvas always shows the 1-bit render.
  */
-export function EditorStage({ elements, width, height, selectedId, onSelect, onChange, onGestureStart, onEditText, onRendered }: Props) {
+export function EditorStage({ elements, width, height, selectedId, onSelect, onChange, onGestureStart, onEditText, onRendered, clock }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const moveableRef = useRef<Moveable>(null);
@@ -59,7 +61,7 @@ export function EditorStage({ elements, width, height, selectedId, onSelect, onC
       canvas.getContext("2d")!.drawImage(offscreen, 0, 0);
       onRendered(canvas, issues);
     });
-  }, [elements, width, height, onRendered]);
+  }, [elements, width, height, onRendered, clock]);
 
   useLayoutEffect(() => {
     if (!gesturing.current) moveableRef.current?.updateRect();

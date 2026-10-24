@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Bluetooth, FilePlus2, FolderOpen, Printer, Redo2, Save, Settings as SettingsIcon, Undo2, Unplug } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Bluetooth, FilePlus2, FolderOpen, LayoutTemplate, Printer, Redo2, Save, Settings as SettingsIcon, Undo2, Unplug } from "lucide-react";
 import { DevicePicker } from "./components/DevicePicker";
 import { EditorStage } from "./components/EditorStage";
 import { IconPicker } from "./components/IconPicker";
@@ -7,11 +7,14 @@ import { Inspector } from "./components/Inspector";
 import { LabelSettings } from "./components/LabelSettings";
 import { PrinterBadge } from "./components/PrinterBadge";
 import { PrintPanel } from "./components/PrintPanel";
+import { SaveTemplateDialog } from "./components/SaveTemplateDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
+import { TemplateGallery } from "./components/TemplateGallery";
+import { fromTemplate, saveTemplate } from "./editor/templates";
 import { Toolbar } from "./components/Toolbar";
 import { makeElement, starterDoc } from "./editor/defaults";
 import { importImage, pickImageFile } from "./editor/importImage";
-import type { RenderIssues } from "./editor/render";
+import { renderLabel, type RenderIssues } from "./editor/render";
 import { newId, type ElementType, type LabelElement } from "./editor/types";
 import { useDocument } from "./editor/useDocument";
 import { loadDraft, useLabelFile } from "./editor/useLabelFile";
@@ -39,8 +42,15 @@ export function App() {
   const file = useLabelFile(editor, {
     initialPath: initial.path,
     initialDirty: initial.dirty,
-    newDoc: (): LabelDoc => ({ version: 1, size: settings.labelSize, elements: [] }),
   });
+  const blankDoc: LabelDoc = { version: 1, size: settings.labelSize, elements: [] };
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+
+  const startFrom = async (template: LabelDoc) => {
+    setGalleryOpen(false);
+    if (await file.newFile(fromTemplate(template))) setSelectedId(null);
+  };
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [issues, setIssues] = useState<RenderIssues>({});
@@ -51,7 +61,6 @@ export function App() {
   const copies = settings.copies;
   const setDensity = (d: number) => updateSettings({ density: d });
   const setCopies = (c: number) => updateSettings({ copies: c });
-  const renderedRef = useRef<HTMLCanvasElement | null>(null);
 
   const printhead = details.printheadPixels ?? 96;
   const dots = canvasSize(doc.size, printhead);
@@ -75,10 +84,7 @@ export function App() {
     if (selectedId && !selected) setSelectedId(null);
   }, [selectedId, selected]);
 
-  const onRendered = useCallback((canvas: HTMLCanvasElement, found: RenderIssues) => {
-    renderedRef.current = canvas;
-    setIssues(found);
-  }, []);
+  const onRendered = useCallback((_canvas: HTMLCanvasElement, found: RenderIssues) => setIssues(found), []);
 
   const connect = () => {
     setPickerOpen(true);
@@ -90,11 +96,15 @@ export function App() {
     printer.stopScan();
   };
 
-  const print = useCallback(() => {
-    if (renderedRef.current && status === "connected") {
-      printer.print(renderedRef.current, { density, copies }).catch(() => undefined);
-    }
-  }, [printer, status, density, copies]);
+  // Render again at print time so dates and times are current.
+  const print = useCallback(async () => {
+    if (status !== "connected") return;
+    const canvas = document.createElement("canvas");
+    await renderLabel(canvas, dots.width, dots.height, doc.elements, new Date());
+    printer.print(canvas, { density, copies }).catch(() => undefined);
+  }, [printer, status, density, copies, dots.width, dots.height, doc.elements]);
+
+  const clock = useMinuteClock(doc.elements.some((e) => e.type === "datetime"));
 
   const addElement = (el: LabelElement) => {
     editor.add(el);
@@ -153,7 +163,7 @@ export function App() {
         void file.openFile();
       } else if (mod && key === "n") {
         e.preventDefault();
-        void file.newFile();
+        setGalleryOpen(true);
       } else if (mod && key === "z" && !typing) {
         e.preventDefault();
         e.shiftKey ? editor.redo() : editor.undo();
@@ -199,7 +209,7 @@ export function App() {
           </span>
         </div>
         <div className="topbar-center">
-          <button className="icon-button" onClick={() => void file.newFile()} title="New label (Ctrl+N)">
+          <button className="icon-button" onClick={() => setGalleryOpen(true)} title="New label (Ctrl+N)">
             <FilePlus2 size={18} />
           </button>
           <button className="icon-button" onClick={() => void file.openFile()} title="Open (Ctrl+O)">
@@ -207,6 +217,9 @@ export function App() {
           </button>
           <button className="icon-button" onClick={() => void file.saveFile()} title="Save (Ctrl+S)">
             <Save size={18} />
+          </button>
+          <button className="icon-button" onClick={() => setSaveTemplateOpen(true)} title="Save as template">
+            <LayoutTemplate size={18} />
           </button>
           <span className="divider" />
           <button className="icon-button" onClick={editor.undo} disabled={!editor.canUndo} title="Undo (Ctrl+Z)">
@@ -246,6 +259,7 @@ export function App() {
           onGestureStart={editor.checkpoint}
           onEditText={() => document.getElementById("inspector-text")?.focus()}
           onRendered={onRendered}
+          clock={clock}
         />
 
         <aside className="panel">
@@ -281,8 +295,31 @@ export function App() {
           if (await printer.connect(p)) updateSettings({ lastPrinter: { id: p.id, name: p.name } });
         }}
       />
+      <TemplateGallery open={galleryOpen} blank={blankDoc} onPick={(d) => void startFrom(d)} onClose={() => setGalleryOpen(false)} />
+      <SaveTemplateDialog
+        open={saveTemplateOpen}
+        defaultName={file.path ? file.title : ""}
+        onSave={async (name) => void (await saveTemplate(name, doc))}
+        onClose={() => setSaveTemplateOpen(false)}
+      />
       <SettingsDialog open={settingsOpen} settings={settings} onChange={updateSettings} onClose={() => setSettingsOpen(false)} />
       <IconPicker open={iconTarget !== null} onPick={pickIcon} onClose={() => setIconTarget(null)} />
     </div>
   );
+}
+
+/** A number that changes at the start of every minute while `enabled`. */
+function useMinuteClock(enabled: boolean): number {
+  const [minute, setMinute] = useState(() => Math.floor(Date.now() / 60000));
+  useEffect(() => {
+    if (!enabled) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      setMinute(Math.floor(Date.now() / 60000));
+      timer = setTimeout(tick, 60000 - (Date.now() % 60000) + 50);
+    };
+    tick();
+    return () => clearTimeout(timer);
+  }, [enabled]);
+  return enabled ? minute : 0;
 }

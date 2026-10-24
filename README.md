@@ -26,10 +26,19 @@ Turn on the D11, click **Connect printer**, and pick it from the list. You don't
 
 ## Designing labels
 
-Add text, images, barcodes, QR codes, icons and shapes from the left toolbar, then drag, resize and rotate them on the label. Everything snaps to the label edges, its centre and other elements. The preview is the exact 1-bit image that's sent to the printer.
+Add text, dates, images, barcodes, QR codes, icons and shapes from the left toolbar, then drag, resize and rotate them on the label. Everything snaps to the label edges, its centre and other elements. The preview is the exact 1-bit image that's sent to the printer.
+
+- **Text** can use any font installed on your computer, aligned left, centre or right and top, middle or bottom.
+- **Date** prints the date when the label is printed, in a format you pick (or your own pattern such as `DD/MM/YYYY`), optionally with the time in 12- or 24-hour form. "Add days" makes use-by labels.
+- **Files**: labels save as `.niimbot` files (JSON). The label you were working on reopens when the app starts; turn that off in Settings.
+- **Templates**: New (Ctrl+N) offers a blank label, built-in templates, and any label you saved with "Save as template". Templates live in the app's data folder.
+- **Settings** (gear icon): light, dark or system theme. Darkness, copies, label size and the last printer are remembered.
 
 | Shortcut | Action |
 | --- | --- |
+| Ctrl+N | New label from a template |
+| Ctrl+O | Open a label |
+| Ctrl+S / Ctrl+Shift+S | Save / save as |
 | Ctrl+Z / Ctrl+Shift+Z | Undo / redo |
 | Ctrl+D | Duplicate |
 | Delete | Remove |
@@ -54,5 +63,5 @@ Bluetooth needs BlueZ, and your user must be allowed to use it (usually by being
 
 1. Connect over Bluetooth and print a test label
 2. Label editor: text, images, barcodes, QR codes and icons
-3. Save and open labels, settings, light and dark themes
+3. Save and open labels, templates, date/time, settings, light and dark themes
 4. Installers and CI for Windows, macOS and Linux

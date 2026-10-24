@@ -25,7 +25,7 @@ type Editor = { doc: LabelDoc; reset: (doc: LabelDoc) => void };
  * New, open, save and save-as for the editor's document, with an unsaved
  * changes prompt and the file name in the window title.
  */
-export function useLabelFile(editor: Editor, opts: { initialPath: string | null; initialDirty: boolean; newDoc: () => LabelDoc }) {
+export function useLabelFile(editor: Editor, opts: { initialPath: string | null; initialDirty: boolean }) {
   const { doc } = editor;
   const [path, setPath] = useState<string | null>(opts.initialPath);
   // The document as last saved or opened. Undo returns the same object, so
@@ -88,13 +88,17 @@ export function useLabelFile(editor: Editor, opts: { initialPath: string | null;
 
   const saveFile = useCallback(() => (state.current.path ? write(state.current.path) : saveAs()), [write, saveAs]);
 
-  const newFile = useCallback(async () => {
-    if (!(await confirmDiscard())) return;
-    const fresh = opts.newDoc();
-    editor.reset(fresh);
-    setPath(null);
-    setSaved(fresh);
-  }, [confirmDiscard, editor, opts]);
+  /** Replace the label with a new, untitled one. False if you chose to keep editing. */
+  const newFile = useCallback(
+    async (fresh: LabelDoc) => {
+      if (!(await confirmDiscard())) return false;
+      editor.reset(fresh);
+      setPath(null);
+      setSaved(fresh);
+      return true;
+    },
+    [confirmDiscard, editor],
+  );
 
   const openFile = useCallback(async () => {
     if (!(await confirmDiscard())) return;

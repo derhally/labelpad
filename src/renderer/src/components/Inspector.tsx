@@ -1,10 +1,11 @@
 import {
-  AlignCenter, AlignLeft, AlignRight, ArrowDownToLine, ArrowUpToLine, Bold, ChevronDown, ChevronUp, Circle, Copy,
+  AlignCenter, AlignEndHorizontal, AlignLeft, AlignRight, AlignStartHorizontal, AlignCenterHorizontal, ArrowDownToLine, ArrowUpToLine, Bold, ChevronDown, ChevronUp, Circle, Copy,
   ImageUp, Italic, Minus, Square, Trash2, TriangleAlert,
 } from "lucide-react";
 import { ICONS } from "../editor/icons";
-import { FONT_FAMILIES } from "../editor/render";
-import { BARCODE_FORMATS, type LabelElement } from "../editor/types";
+import { DATE_PRESETS, dateTimeText, formatDate, formatTime } from "../editor/dateFormat";
+import { BARCODE_FORMATS, type LabelElement, type TextStyle } from "../editor/types";
+import { FontPicker } from "./FontPicker";
 import { DOTS_PER_MM } from "../printer/label";
 import { Field, NumberInput, Segmented, Toggle } from "./fields";
 import { TYPE_META } from "./Toolbar";
@@ -23,12 +24,15 @@ type Props = {
   onReplaceImage: () => void;
 };
 
+const CUSTOM = "__custom";
+
 export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDelete, onReorder, onPickIcon, onReplaceImage }: Props) {
   const meta = TYPE_META[el.type];
   // Typing is one undo step per focus, not per keystroke.
   const typing = { onFocus: onCheckpoint };
   const type = (patch: Partial<LabelElement>) => onChange(patch, { transient: true });
   const mm = (dots: number) => dots / DOTS_PER_MM;
+  const now = new Date();
 
   return (
     <div className="inspector">
@@ -70,45 +74,55 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
           <Field label="Text">
             <textarea id="inspector-text" rows={3} value={el.text} {...typing} onChange={(e) => type({ text: e.target.value })} />
           </Field>
-          <Field label="Font">
-            <select value={el.fontFamily} onChange={(e) => onChange({ fontFamily: e.target.value })}>
-              {FONT_FAMILIES.map((f) => (
-                <option key={f} value={f} style={{ fontFamily: f }}>
-                  {f}
+          <TextStyleFields el={el} onChange={onChange} onCheckpoint={onCheckpoint} />
+        </>
+      )}
+
+      {el.type === "datetime" && (
+        <>
+          <Field label="Date format">
+            <select
+              value={DATE_PRESETS.some((p) => p.pattern === el.dateFormat) ? el.dateFormat : CUSTOM}
+              onChange={(e) => onChange({ dateFormat: e.target.value === CUSTOM ? "DD MMM YYYY" : e.target.value })}
+            >
+              {DATE_PRESETS.map((p) => (
+                <option key={p.pattern} value={p.pattern}>
+                  {p.pattern ? `${formatDate(now, p.pattern)}${p.label ? ` (${p.label.toLowerCase()})` : ""}` : p.label}
                 </option>
               ))}
+              <option value={CUSTOM}>Custom…</option>
             </select>
           </Field>
-          <div className="row">
-            <Segmented
-              value={el.align}
-              onChange={(align) => onChange({ align })}
-              options={[
-                { value: "left", label: <AlignLeft size={16} />, title: "Align left" },
-                { value: "center", label: <AlignCenter size={16} />, title: "Centre" },
-                { value: "right", label: <AlignRight size={16} />, title: "Align right" },
-              ]}
-            />
-            <div className="segmented">
-              <button className={el.bold ? "active" : ""} title="Bold" onClick={() => onChange({ bold: !el.bold })}>
-                <Bold size={16} />
-              </button>
-              <button className={el.italic ? "active" : ""} title="Italic" onClick={() => onChange({ italic: !el.italic })}>
-                <Italic size={16} />
-              </button>
-            </div>
-          </div>
-          <Toggle checked={el.autoFit} onChange={(autoFit) => onChange({ autoFit })}>
-            Fit text to box
-          </Toggle>
-          {!el.autoFit && (
-            <Field label={`Size · ${el.fontSize} dots`}>
-              <input type="range" min={6} max={96} value={el.fontSize} onPointerDown={onCheckpoint} onChange={(e) => type({ fontSize: Number(e.target.value) })} />
+          {!DATE_PRESETS.some((p) => p.pattern === el.dateFormat) && (
+            <Field label="Custom pattern">
+              <input id="inspector-text" type="text" value={el.dateFormat} {...typing} onChange={(e) => type({ dateFormat: e.target.value })} />
+              <p className="muted hint token-help">YYYY year · MM or MMM month · DD day · ddd weekday</p>
             </Field>
           )}
-          <Toggle checked={el.invert} onChange={(invert) => onChange({ invert })}>
-            White on black
+          <Toggle checked={el.showTime} onChange={(showTime) => onChange({ showTime })}>
+            Add the time it's printed
           </Toggle>
+          {el.showTime && (
+            <Segmented
+              value={el.hour12 ? "12" : "24"}
+              onChange={(v) => onChange({ hour12: v === "12" })}
+              options={[
+                { value: "24", label: `24-hour · ${formatTime(now, false)}` },
+                { value: "12", label: `12-hour · ${formatTime(now, true)}` },
+              ]}
+            />
+          )}
+          <div className="grid-2">
+            <Field label="Text before">
+              <input type="text" placeholder="e.g. Packed " value={el.prefix} {...typing} onChange={(e) => type({ prefix: e.target.value })} />
+            </Field>
+            <Field label="Add days">
+              <NumberInput min={-3650} max={3650} value={el.offsetDays} onChange={(offsetDays) => onChange({ offsetDays: Math.round(offsetDays) })} />
+            </Field>
+          </div>
+          {el.offsetDays !== 0 && <p className="muted hint">Prints the date {Math.abs(el.offsetDays)} day{Math.abs(el.offsetDays) === 1 ? "" : "s"} {el.offsetDays > 0 ? "after" : "before"} printing, for use-by labels.</p>}
+          <p className="muted hint">Prints as: <strong>{dateTimeText(el, now) || "(nothing)"}</strong></p>
+          <TextStyleFields el={el} onChange={onChange} onCheckpoint={onCheckpoint} />
         </>
       )}
 
@@ -232,5 +246,56 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
         </div>
       </div>
     </div>
+  );
+}
+
+/** Font, alignment and fit, shared by text and date/time. */
+function TextStyleFields({ el, onChange, onCheckpoint }: { el: TextStyle; onChange: Update; onCheckpoint: () => void }) {
+  return (
+    <>
+      <div className="field">
+        <span>Font</span>
+        <FontPicker value={el.fontFamily} onChange={(fontFamily) => onChange({ fontFamily })} />
+      </div>
+      <div className="row">
+        <Segmented
+          value={el.align}
+          onChange={(align) => onChange({ align })}
+          options={[
+            { value: "left", label: <AlignLeft size={16} />, title: "Align left" },
+            { value: "center", label: <AlignCenter size={16} />, title: "Centre" },
+            { value: "right", label: <AlignRight size={16} />, title: "Align right" },
+          ]}
+        />
+        <div className="segmented">
+          <button className={el.bold ? "active" : ""} title="Bold" onClick={() => onChange({ bold: !el.bold })}>
+            <Bold size={16} />
+          </button>
+          <button className={el.italic ? "active" : ""} title="Italic" onClick={() => onChange({ italic: !el.italic })}>
+            <Italic size={16} />
+          </button>
+        </div>
+      </div>
+      <Segmented
+        value={el.valign}
+        onChange={(valign) => onChange({ valign })}
+        options={[
+          { value: "top", label: <><AlignStartHorizontal size={16} /> Top</>, title: "Align to top" },
+          { value: "middle", label: <><AlignCenterHorizontal size={16} /> Middle</>, title: "Centre vertically" },
+          { value: "bottom", label: <><AlignEndHorizontal size={16} /> Bottom</>, title: "Align to bottom" },
+        ]}
+      />
+      <Toggle checked={el.autoFit} onChange={(autoFit) => onChange({ autoFit })}>
+        Fit text to box
+      </Toggle>
+      {!el.autoFit && (
+        <Field label={`Size · ${el.fontSize} dots`}>
+          <input type="range" min={6} max={96} value={el.fontSize} onPointerDown={onCheckpoint} onChange={(e) => onChange({ fontSize: Number(e.target.value) }, { transient: true })} />
+        </Field>
+      )}
+      <Toggle checked={el.invert} onChange={(invert) => onChange({ invert })}>
+        White on black
+      </Toggle>
+    </>
   );
 }
