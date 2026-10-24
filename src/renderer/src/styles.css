@@ -313,3 +313,30 @@ textarea:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accen
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .grid-2 > * { min-width: 0; }
 .grid-2 input[type="text"] { width: 100%; }
+
+.font-row { display: flex; gap: 8px; }
+.font-row .font-picker { flex: 1; min-width: 0; }
+.font-row .button { height: 38px; padding: 0 10px; }
+.dialog.font-browser { width: min(860px, calc(100% - 32px)); display: flex; flex-direction: column; max-height: calc(100vh - 48px); }
+.font-browser-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.font-browser-controls .search { margin-bottom: 0; }
+.font-browser-controls .search input { height: 36px; }
+.sample-input { min-width: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; font-size: 13px; font-weight: 550; cursor: pointer;
+}
+.chip span { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.chip.active { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.chip.active span { color: inherit; opacity: 0.8; }
+.font-cards { flex: 1; min-height: 200px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; align-content: start; padding: 2px; }
+.font-card {
+  display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; text-align: left; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; content-visibility: auto; contain-intrinsic-size: auto 92px;
+}
+.font-card:hover { border-color: var(--accent); }
+.font-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.font-sample { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; padding: 8px 10px; border-radius: 6px; background: #fff; color: #000; font-size: 22px; line-height: 1.25; overflow: hidden; overflow-wrap: anywhere; }
+.font-card-name { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; font-weight: 600; overflow: hidden; }
+.font-card-name em { font-style: normal; font-weight: 500; color: var(--muted); white-space: nowrap; }

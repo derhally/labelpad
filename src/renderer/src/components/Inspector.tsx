@@ -1,10 +1,12 @@
 import {
   AlignCenter, AlignEndHorizontal, AlignLeft, AlignRight, AlignStartHorizontal, AlignCenterHorizontal, ArrowDownToLine, ArrowUpToLine, Bold, ChevronDown, ChevronUp, Circle, Copy,
-  ImageUp, Italic, Minus, Square, Trash2, TriangleAlert,
+  ImageUp, Italic, LayoutGrid, Minus, Square, Trash2, TriangleAlert,
 } from "lucide-react";
 import { ICONS } from "../editor/icons";
 import { DATE_PRESETS, dateTimeText, formatDate, formatTime } from "../editor/dateFormat";
 import { BARCODE_FORMATS, type LabelElement, type TextStyle } from "../editor/types";
+import { useState } from "react";
+import { FontBrowser } from "./FontBrowser";
 import { FontPicker } from "./FontPicker";
 import { DOTS_PER_MM } from "../printer/label";
 import { Field, NumberInput, Segmented, Toggle } from "./fields";
@@ -74,55 +76,76 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
           <Field label="Text">
             <textarea id="inspector-text" rows={3} value={el.text} {...typing} onChange={(e) => type({ text: e.target.value })} />
           </Field>
-          <TextStyleFields el={el} onChange={onChange} onCheckpoint={onCheckpoint} />
+          <TextStyleFields el={el} previewText={el.text} onChange={onChange} onCheckpoint={onCheckpoint} />
         </>
       )}
 
       {el.type === "datetime" && (
         <>
-          <Field label="Date format">
-            <select
-              value={DATE_PRESETS.some((p) => p.pattern === el.dateFormat) ? el.dateFormat : CUSTOM}
-              onChange={(e) => onChange({ dateFormat: e.target.value === CUSTOM ? "DD MMM YYYY" : e.target.value })}
-            >
-              {DATE_PRESETS.map((p) => (
-                <option key={p.pattern} value={p.pattern}>
-                  {p.pattern ? `${formatDate(now, p.pattern)}${p.label ? ` (${p.label.toLowerCase()})` : ""}` : p.label}
-                </option>
-              ))}
-              <option value={CUSTOM}>Custom…</option>
-            </select>
+          <Field label="Show">
+            <Segmented
+              value={el.show}
+              onChange={(show) => onChange({ show })}
+              options={[
+                { value: "datetime", label: "Date + time" },
+                { value: "date", label: "Date" },
+                { value: "time", label: "Time" },
+              ]}
+            />
           </Field>
-          {!DATE_PRESETS.some((p) => p.pattern === el.dateFormat) && (
+          {el.show !== "time" && (
+            <Field label="Date format">
+              <select
+                value={DATE_PRESETS.some((p) => p.pattern === el.dateFormat) ? el.dateFormat : CUSTOM}
+                onChange={(e) => onChange({ dateFormat: e.target.value === CUSTOM ? "DD MMM YYYY" : e.target.value })}
+              >
+                {DATE_PRESETS.map((p) => (
+                  <option key={p.pattern} value={p.pattern}>
+                    {formatDate(now, p.pattern)}
+                    {p.label ? ` (${p.label.toLowerCase()})` : ""}
+                  </option>
+                ))}
+                <option value={CUSTOM}>Custom…</option>
+              </select>
+            </Field>
+          )}
+          {el.show !== "time" && !DATE_PRESETS.some((p) => p.pattern === el.dateFormat) && (
             <Field label="Custom pattern">
               <input id="inspector-text" type="text" value={el.dateFormat} {...typing} onChange={(e) => type({ dateFormat: e.target.value })} />
               <p className="muted hint token-help">YYYY year · MM or MMM month · DD day · ddd weekday</p>
             </Field>
           )}
-          <Toggle checked={el.showTime} onChange={(showTime) => onChange({ showTime })}>
-            Add the time it's printed
-          </Toggle>
-          {el.showTime && (
-            <Segmented
-              value={el.hour12 ? "12" : "24"}
-              onChange={(v) => onChange({ hour12: v === "12" })}
-              options={[
-                { value: "24", label: `24-hour · ${formatTime(now, false)}` },
-                { value: "12", label: `12-hour · ${formatTime(now, true)}` },
-              ]}
-            />
+          {el.show !== "date" && (
+            <Field label="Time">
+              <Segmented
+                value={el.hour12 ? "12" : "24"}
+                onChange={(v) => onChange({ hour12: v === "12" })}
+                options={[
+                  { value: "24", label: `24-hour · ${formatTime(now, false)}` },
+                  { value: "12", label: `12-hour · ${formatTime(now, true)}` },
+                ]}
+              />
+            </Field>
           )}
           <div className="grid-2">
             <Field label="Text before">
               <input type="text" placeholder="e.g. Packed " value={el.prefix} {...typing} onChange={(e) => type({ prefix: e.target.value })} />
             </Field>
-            <Field label="Add days">
-              <NumberInput min={-3650} max={3650} value={el.offsetDays} onChange={(offsetDays) => onChange({ offsetDays: Math.round(offsetDays) })} />
-            </Field>
+            {el.show !== "time" && (
+              <Field label="Add days">
+                <NumberInput min={-3650} max={3650} value={el.offsetDays} onChange={(offsetDays) => onChange({ offsetDays: Math.round(offsetDays) })} />
+              </Field>
+            )}
           </div>
-          {el.offsetDays !== 0 && <p className="muted hint">Prints the date {Math.abs(el.offsetDays)} day{Math.abs(el.offsetDays) === 1 ? "" : "s"} {el.offsetDays > 0 ? "after" : "before"} printing, for use-by labels.</p>}
-          <p className="muted hint">Prints as: <strong>{dateTimeText(el, now) || "(nothing)"}</strong></p>
-          <TextStyleFields el={el} onChange={onChange} onCheckpoint={onCheckpoint} />
+          {el.show !== "time" && el.offsetDays !== 0 && (
+            <p className="muted hint">
+              Prints the date {Math.abs(el.offsetDays)} day{Math.abs(el.offsetDays) === 1 ? "" : "s"} {el.offsetDays > 0 ? "after" : "before"} printing, for use-by labels.
+            </p>
+          )}
+          <p className="muted hint">
+            Prints as: <strong>{dateTimeText(el, now)}</strong>
+          </p>
+          <TextStyleFields el={el} previewText={dateTimeText(el, now)} onChange={onChange} onCheckpoint={onCheckpoint} />
         </>
       )}
 
@@ -250,13 +273,28 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
 }
 
 /** Font, alignment and fit, shared by text and date/time. */
-function TextStyleFields({ el, onChange, onCheckpoint }: { el: TextStyle; onChange: Update; onCheckpoint: () => void }) {
+function TextStyleFields({ el, previewText, onChange, onCheckpoint }: { el: TextStyle; previewText: string; onChange: Update; onCheckpoint: () => void }) {
+  const [browsing, setBrowsing] = useState(false);
   return (
     <>
       <div className="field">
         <span>Font</span>
-        <FontPicker value={el.fontFamily} onChange={(fontFamily) => onChange({ fontFamily })} />
+        <div className="font-row">
+          <FontPicker value={el.fontFamily} onChange={(fontFamily) => onChange({ fontFamily })} />
+          <button className="button ghost" onClick={() => setBrowsing(true)} title="Browse fonts by style, with a preview of this label's text">
+            <LayoutGrid size={16} /> Browse
+          </button>
+        </div>
       </div>
+      <FontBrowser
+        open={browsing}
+        value={el.fontFamily}
+        previewText={previewText}
+        bold={el.bold}
+        italic={el.italic}
+        onPick={(fontFamily) => onChange({ fontFamily })}
+        onClose={() => setBrowsing(false)}
+      />
       <div className="row">
         <Segmented
           value={el.align}

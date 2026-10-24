@@ -119,24 +119,94 @@ async fn label_write(path: String, contents: String) -> Result<(), String> {
     tokio::fs::rename(&tmp, &path).await.map_err(|e| format!("Couldn't save {path}: {e}"))
 }
 
+/// An installed font family and its style, for the font picker.
+#[derive(Serialize)]
+struct FontFamily {
+    family: String,
+    /// "sans", "serif", "mono", "script", "display", "symbol" or "other".
+    category: &'static str,
+}
+
 /// Font families installed on this computer, sorted, for the font picker.
 #[tauri::command]
-async fn system_fonts() -> Vec<String> {
+async fn system_fonts() -> Vec<FontFamily> {
     tauri::async_runtime::spawn_blocking(|| {
         let mut db = fontdb::Database::new();
         db.load_system_fonts();
-        let mut names: Vec<String> = db
-            .faces()
-            .filter_map(|f| f.families.first().map(|(name, _)| name.clone()))
+        // One face per family, preferring the regular one, which says the most about its style.
+        let mut faces: std::collections::BTreeMap<String, &fontdb::FaceInfo> = std::collections::BTreeMap::new();
+        for face in db.faces() {
+            let Some((name, _)) = face.families.first() else { continue };
             // Names starting with "." are hidden system fonts on macOS.
-            .filter(|n| !n.starts_with('.'))
+            if name.starts_with('.') {
+                continue;
+            }
+            let regular = |f: &fontdb::FaceInfo| f.weight == fontdb::Weight::NORMAL && f.style == fontdb::Style::Normal;
+            let entry = faces.entry(name.clone()).or_insert(face);
+            if !regular(entry) && regular(face) {
+                *entry = face;
+            }
+        }
+        let mut fonts: Vec<FontFamily> = faces
+            .into_iter()
+            .map(|(family, face)| {
+                let category = db
+                    .with_face_data(face.id, |data, index| font_category(&family, face.monospaced, data, index))
+                    .unwrap_or("other");
+                FontFamily { family, category }
+            })
             .collect();
-        names.sort_by_key(|n| n.to_lowercase());
-        names.dedup();
-        names
+        fonts.sort_by_key(|f| f.family.to_lowercase());
+        fonts
     })
     .await
     .unwrap_or_default()
+}
+
+/// Classify a font from its OS/2 table (PANOSE, then IBM family class), falling back to its name.
+fn font_category(family: &str, monospaced: bool, data: &[u8], index: u32) -> &'static str {
+    let name = family.to_lowercase();
+    if name.contains("emoji") || name.contains("symbol") || name.contains("dings") {
+        return "symbol";
+    }
+    if monospaced || name.contains("mono") {
+        return "mono";
+    }
+    let os2 = ttf_parser::RawFace::parse(data, index)
+        .ok()
+        .and_then(|f| f.table(ttf_parser::Tag::from_bytes(b"OS/2")))
+        .filter(|t| t.len() >= 42);
+    if let Some(t) = os2 {
+        // PANOSE starts at byte 32: family kind, then serif style.
+        match (t[32], t[33]) {
+            (3, _) => return "script",
+            (4, _) => return "display",
+            (5, _) => return "symbol",
+            (2, 11..=15) => return "sans",
+            (2, 2..=10) => return "serif",
+            _ => {}
+        }
+        // sFamilyClass high byte at byte 30.
+        match t[30] {
+            1..=5 | 7 => return "serif",
+            8 => return "sans",
+            9 => return "display",
+            10 => return "script",
+            12 => return "symbol",
+            _ => {}
+        }
+    }
+    if name.contains("code") || name.contains("courier") || name.contains("console") {
+        "mono"
+    } else if name.contains("sans") || name.contains("gothic") || name.contains("grotesk") {
+        "sans"
+    } else if name.contains("serif") || name.contains("roman") {
+        "serif"
+    } else if name.contains("script") || name.contains("hand") {
+        "script"
+    } else {
+        "other"
+    }
 }
 
 /// A label saved as a template, in the app's data folder.
@@ -215,3 +285,4 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running Niimbot Studio");
 }
+

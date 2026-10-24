@@ -59,7 +59,7 @@ export function builtInTemplates(): Template[] {
       builtIn: true,
       doc: doc({ widthMm: 12, lengthMm: 40 }, [
         at("icon", l40, [10, 20, 56, 56], { icon: "calendar" }),
-        at("datetime", l40, [76, 8, 236, 80], { dateFormat: "ddd D MMM YYYY", showTime: true, align: "left" }),
+        at("datetime", l40, [76, 8, 236, 80], { show: "datetime", dateFormat: "ddd D MMM YYYY", align: "left" }),
       ]),
     },
   ];

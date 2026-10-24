@@ -36,8 +36,8 @@ export function makeElement(type: ElementType, label: { width: number; height: n
       const el: DateTimeElement = {
         ...box(Math.min(label.width - 16, 200), Math.round(h * 0.5)),
         type: "datetime",
+        show: "date",
         dateFormat: "locale",
-        showTime: false,
         hour12: systemUses12Hour(),
         prefix: "",
         offsetDays: 0,

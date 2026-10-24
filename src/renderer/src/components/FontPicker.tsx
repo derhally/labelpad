@@ -23,9 +23,10 @@ export function FontPicker({ value, onChange }: Props) {
   const { common, rest } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const match = (f: string) => !q || f.toLowerCase().includes(q);
-    const installed = new Set(fonts);
-    const common = COMMON_FONTS.filter((f) => installed.has(f) && match(f));
-    return { common, rest: fonts.filter((f) => match(f) && !common.includes(f)) };
+    const names = fonts.map((f) => f.family);
+    const installed = new Set(names);
+    const common = COMMON_FONTS.map((f) => f.family).filter((f) => installed.has(f) && match(f));
+    return { common, rest: names.filter((f) => match(f) && !common.includes(f)) };
   }, [fonts, query]);
 
   const pick = (font: string) => {

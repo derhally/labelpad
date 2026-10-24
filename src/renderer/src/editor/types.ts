@@ -45,9 +45,9 @@ export type TextElement = ElementBase &
 export type DateTimeElement = ElementBase &
   TextStyle & {
     type: "datetime";
-    /** Token pattern such as "DD/MM/YYYY" (see dateFormat.ts), "locale" for the system format, or "" for no date. */
+    show: "datetime" | "date" | "time";
+    /** Token pattern such as "DD/MM/YYYY" (see dateFormat.ts), or "locale" for the system format. */
     dateFormat: string;
-    showTime: boolean;
     hour12: boolean;
     /** Text before the date, such as "Packed ". */
     prefix: string;

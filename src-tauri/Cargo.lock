@@ -2151,6 +2151,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-dialog",
  "tokio",
+ "ttf-parser",
 ]
 
 [[package]]

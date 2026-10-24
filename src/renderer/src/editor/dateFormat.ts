@@ -21,7 +21,6 @@ export const DATE_PRESETS: { pattern: string; label?: string }[] = [
   { pattern: "DD/MM" },
   { pattern: "ddd D MMM" },
   { pattern: "dddd, D MMMM YYYY" },
-  { pattern: "", label: "No date" },
 ];
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -55,10 +54,10 @@ export function formatTime(date: Date, hour12: boolean): string {
 }
 
 /** The text a date/time element prints at `now`. */
-export function dateTimeText(el: Pick<DateTimeElement, "dateFormat" | "showTime" | "hour12" | "prefix" | "offsetDays">, now: Date): string {
+export function dateTimeText(el: Pick<DateTimeElement, "show" | "dateFormat" | "hour12" | "prefix" | "offsetDays">, now: Date): string {
   const date = new Date(now);
   date.setDate(date.getDate() + el.offsetDays);
-  const parts = [el.dateFormat ? formatDate(date, el.dateFormat) : "", el.showTime ? formatTime(now, el.hour12) : ""].filter(Boolean);
+  const parts = [el.show !== "time" ? formatDate(date, el.dateFormat) : "", el.show !== "date" ? formatTime(now, el.hour12) : ""].filter(Boolean);
   return `${el.prefix}${parts.join(" ")}`;
 }
 
