@@ -104,11 +104,35 @@ async fn printer_print(printer: State<'_, Printer>, width: u32, height: u32, bit
         .map_err(|e| e.to_string())
 }
 
+/// Label files are small JSON documents; the UI picks the path with a native dialog.
+#[tauri::command]
+async fn label_read(path: String) -> Result<String, String> {
+    tokio::fs::read_to_string(&path).await.map_err(|e| format!("Couldn't open {path}: {e}"))
+}
+
+#[tauri::command]
+async fn label_write(path: String, contents: String) -> Result<(), String> {
+    // Write beside the target, then rename, so a failed save never truncates the old file.
+    let tmp = format!("{path}.tmp");
+    tokio::fs::write(&tmp, contents).await.map_err(|e| format!("Couldn't save {path}: {e}"))?;
+    tokio::fs::rename(&tmp, &path).await.map_err(|e| format!("Couldn't save {path}: {e}"))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(Printer::default())
-        .invoke_handler(tauri::generate_handler![scan_start, scan_stop, printer_connect, printer_disconnect, printer_print])
+        .invoke_handler(tauri::generate_handler![
+            scan_start,
+            scan_stop,
+            printer_connect,
+            printer_disconnect,
+            printer_print,
+            label_read,
+            label_write
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Niimbot Studio");
 }

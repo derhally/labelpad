@@ -22,8 +22,9 @@
   font-size: 14px;
 }
 
+/* Dark colours apply when the system is dark (unless Light is picked in Settings), or when Dark is picked. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0e1014;
     --surface: #171a20;
     --surface-2: #1f232b;
@@ -41,6 +42,27 @@
     --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 12px 32px rgb(0 0 0 / 35%);
   }
 }
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1014;
+  --surface: #171a20;
+  --surface-2: #1f232b;
+  --border: #2a2f39;
+  --text: #e8eaef;
+  --muted: #8b91a0;
+  --accent: #5b86ff;
+  --accent-hover: #7398ff;
+  --warn-bg: #3a2c0a;
+  --warn: #f0b429;
+  --error-bg: #3d1720;
+  --error: #ff6b86;
+  --stage: #12151a;
+  --stage-dot: #232831;
+  --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 12px 32px rgb(0 0 0 / 35%);
+}
+
+:root[data-theme="light"] { color-scheme: light; }
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
@@ -240,3 +262,11 @@ textarea:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accen
 @media (max-width: 1000px) {
   .workspace { grid-template-columns: 72px 1fr 290px; }
 }
+
+.doc-title { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; padding-left: 12px; border-left: 1px solid var(--border); color: var(--muted); font-weight: 500; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dirty { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+.divider { width: 1px; height: 20px; margin: 0 6px; align-self: center; background: var(--border); }
+.segmented button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.settings { display: flex; flex-direction: column; gap: 20px; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.device-tag { margin-left: 8px; padding: 2px 7px; border-radius: 999px; font-style: normal; font-size: 11px; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }

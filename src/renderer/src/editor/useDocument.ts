@@ -67,6 +67,8 @@ export function useDocument(initial: LabelDoc) {
           return { ...d, elements: els };
         }),
       replace: (doc: LabelDoc) => apply(() => doc),
+      /** Start over with another document, clearing undo history. */
+      reset: (doc: LabelDoc) => setHistory({ past: [], present: doc, future: [] }),
     }),
     [apply],
   );

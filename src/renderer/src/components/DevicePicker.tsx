@@ -4,13 +4,17 @@ import type { FoundPrinter } from "../printer/usePrinter";
 type Props = {
   open: boolean;
   printers: FoundPrinter[];
+  /** The printer connected last time; it's listed first when found. */
+  lastPrinterId?: string;
   onPick: (printer: FoundPrinter) => void;
   onClose: () => void;
 };
 
 /** Lists printers as the Bluetooth scan finds them. */
-export function DevicePicker({ open, printers, onPick, onClose }: Props) {
+export function DevicePicker({ open, printers, lastPrinterId, onPick, onClose }: Props) {
   if (!open) return null;
+
+  const sorted = [...printers].sort((a, b) => Number(b.id === lastPrinterId) - Number(a.id === lastPrinterId));
 
   return (
     <div className="backdrop" onClick={onClose}>
@@ -26,10 +30,13 @@ export function DevicePicker({ open, printers, onPick, onClose }: Props) {
         </header>
 
         <div className="device-list">
-          {printers.map((d) => (
+          {sorted.map((d) => (
             <button key={d.id} className="device" onClick={() => onPick(d)}>
               <Printer size={18} />
-              <span>{d.name}</span>
+              <span>
+                {d.name}
+                {d.id === lastPrinterId && <em className="device-tag">Last used</em>}
+              </span>
               <span className="device-action">Connect</span>
             </button>
           ))}

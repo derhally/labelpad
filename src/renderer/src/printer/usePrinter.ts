@@ -128,9 +128,11 @@ export function usePrinter() {
           battery: info.batteryPercents,
         });
         setStatus("connected");
+        return true;
       } catch (e) {
         reset();
         setError(String(e));
+        return false;
       }
     },
     [reset],
