@@ -2,11 +2,11 @@
 
 A modern desktop app for designing and printing labels on the **Niimbot D11** Bluetooth label printer. Runs on Windows, macOS and Linux.
 
-Built with Electron, React and TypeScript, on top of [niimbluelib](https://github.com/MultiMote/niimbluelib) for the printer protocol.
+Built with [Tauri 2](https://tauri.app): a React + TypeScript label editor in the system webview, and a Rust backend that talks to the printer over Bluetooth LE ([btleplug](https://github.com/deviceplug/btleplug)). The Niimbot protocol in `src-tauri/niimbot` is a Rust port of [niimbluelib](https://github.com/MultiMote/niimbluelib), tested byte for byte against it.
 
 ## Getting started
 
-Requires Node.js 22 or newer.
+Requires Node.js 22+, [Rust](https://rustup.rs) (stable), and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS. On Windows that's the MSVC build tools and WebView2, which Windows 10/11 already include.
 
 ```bash
 npm install
@@ -14,6 +14,15 @@ npm run dev
 ```
 
 Turn on the D11, click **Connect printer**, and pick it from the list. You don't need to pair it in your system's Bluetooth settings first.
+
+## How it's built
+
+| Path | What it is |
+| --- | --- |
+| `src/renderer` | React UI: the label editor and its 1-bit renderer |
+| `src-tauri/src` | Tauri app: commands the UI calls (`scan_start`, `printer_connect`, `printer_print`, …) |
+| `src-tauri/niimbot` | Printer protocol: packets, image encoding, print jobs and the Bluetooth transport |
+| `scripts/gen-niimbot.cjs` | Regenerates the printer model table and the reference test fixtures from niimbluelib |
 
 ## Designing labels
 
@@ -30,15 +39,16 @@ Add text, images, barcodes, QR codes, icons and shapes from the left toolbar, th
 
 ### Linux
 
-Bluetooth needs BlueZ, and your user must be allowed to use it (usually by being in the `bluetooth` group).
+Bluetooth needs BlueZ, and your user must be allowed to use it (usually by being in the `bluetooth` group). Building needs `libwebkit2gtk-4.1-dev` and `libdbus-1-dev`.
 
 ## Scripts
 
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Start the app with hot reload |
-| `npm run build` | Build the app into `out/` |
-| `npm run typecheck` | Type-check the whole project |
+| `npm run build` | Build an installer for this OS |
+| `npm test` | Run the Rust protocol tests |
+| `npm run typecheck` | Type-check the UI |
 
 ## Roadmap
 

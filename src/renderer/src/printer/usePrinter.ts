@@ -1,20 +1,44 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ImageEncoder,
-  LabelType,
-  NiimbotBluetoothClient,
-  PageColorType,
-  type HeartbeatData,
-  type PrintDirection,
-} from "@mmote/niimbluelib";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 export type PrinterStatus = "disconnected" | "connecting" | "connected" | "printing";
+
+/** Mirrors `niimbot::PrinterInfo` from the Rust side. */
+type RustPrinterInfo = {
+  modelId?: number;
+  model?: {
+    model: string;
+    printDirection: "left" | "top";
+    printheadPixels: number;
+    densityMin: number;
+    densityMax: number;
+    densityDefault: number;
+  };
+  protocolVersion: number;
+  batteryPercents?: number;
+  softwareVersion?: string;
+  printheadWidth?: number;
+  printTask?: string;
+};
+
+export type HeartbeatData = {
+  lidClosed?: boolean;
+  batteryPercents?: number;
+  paperInserted?: boolean;
+};
+
+type PrinterEvent =
+  | { type: "heartbeat"; data: HeartbeatData }
+  | { type: "printProgress"; page: number; pagesTotal: number; percent: number; sending: boolean }
+  | { type: "disconnected" };
+
+export type FoundPrinter = { id: string; name: string; rssi?: number };
 
 export type PrinterDetails = {
   deviceName?: string;
   model?: string;
   printheadPixels?: number;
-  printDirection: PrintDirection;
   densityMin: number;
   densityMax: number;
   densityDefault: number;
@@ -22,7 +46,7 @@ export type PrinterDetails = {
   battery?: number;
 };
 
-export type PrintProgress = { page: number; pagesTotal: number; percent: number };
+export type PrintProgress = { page: number; pagesTotal: number; percent: number; sending: boolean };
 
 export type PrintOptions = { density: number; copies: number };
 
@@ -30,125 +54,121 @@ export type PrintOptions = { density: number; copies: number };
 export const D11_DEFAULTS: PrinterDetails = {
   model: "D11",
   printheadPixels: 96,
-  printDirection: "left",
   densityMin: 1,
   densityMax: 3,
   densityDefault: 2,
 };
 
 /**
- * Wraps a niimbluelib Bluetooth client in React state: connection status,
- * printer details, live heartbeat (paper, lid, battery) and print progress.
+ * Printer state for the UI. Bluetooth and the Niimbot protocol live in Rust
+ * (src-tauri/niimbot); this hook calls its commands and listens for its events.
  */
 export function usePrinter() {
-  const clientRef = useRef<NiimbotBluetoothClient | null>(null);
   const [status, setStatus] = useState<PrinterStatus>("disconnected");
   const [details, setDetails] = useState<PrinterDetails>(D11_DEFAULTS);
   const [heartbeat, setHeartbeat] = useState<HeartbeatData | null>(null);
   const [progress, setProgress] = useState<PrintProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [found, setFound] = useState<FoundPrinter[]>([]);
+  const statusRef = useRef(status);
+  statusRef.current = status;
 
   const reset = useCallback(() => {
-    clientRef.current = null;
     setStatus("disconnected");
     setHeartbeat(null);
     setProgress(null);
     setDetails(D11_DEFAULTS);
   }, []);
 
-  useEffect(() => () => void clientRef.current?.disconnect(), []);
+  useEffect(() => {
+    const unlisten = [
+      listen<FoundPrinter[]>("printers-found", (e) => setFound(e.payload)),
+      listen<PrinterEvent>("printer-event", (e) => {
+        const ev = e.payload;
+        if (ev.type === "heartbeat") setHeartbeat(ev.data);
+        else if (ev.type === "printProgress") setProgress(ev);
+        else if (ev.type === "disconnected") {
+          if (statusRef.current !== "disconnected") setError("The printer disconnected.");
+          reset();
+        }
+      }),
+    ];
+    return () => unlisten.forEach((p) => p.then((off) => off()));
+  }, [reset]);
 
-  const connect = useCallback(async () => {
+  /** Start scanning; the device picker shows `found` as printers appear. */
+  const startScan = useCallback(async () => {
     setError(null);
-    setStatus("connecting");
-    await clientRef.current?.disconnect();
-
-    const client = new NiimbotBluetoothClient();
-    clientRef.current = client;
-
-    client.on("disconnect", () => {
-      if (clientRef.current === client) reset();
-    });
-    client.on("heartbeat", (e) => setHeartbeat(e.data));
-    client.on("printprogress", (e) =>
-      setProgress({ page: e.page, pagesTotal: e.pagesTotal, percent: e.pagePrintProgress }),
-    );
-
+    setFound([]);
     try {
-      const info = await client.connect();
-      const meta = client.getModelMetadata();
-      const printerInfo = client.getPrinterInfo();
-      setDetails({
-        deviceName: info.deviceName,
-        model: meta?.model ?? "Unknown model",
-        printheadPixels: meta?.printheadPixels ?? printerInfo.printheadWidth ?? D11_DEFAULTS.printheadPixels,
-        printDirection: meta?.printDirection ?? D11_DEFAULTS.printDirection,
-        densityMin: meta?.densityMin ?? D11_DEFAULTS.densityMin,
-        densityMax: meta?.densityMax ?? D11_DEFAULTS.densityMax,
-        densityDefault: meta?.densityDefault ?? D11_DEFAULTS.densityDefault,
-        firmware: printerInfo.softwareVersion,
-        battery: printerInfo.batteryPercents,
-      });
-      setStatus("connected");
+      await invoke("scan_start");
     } catch (e) {
-      clientRef.current = null;
-      setStatus("disconnected");
-      // Closing the device picker rejects with "User cancelled…"; that's not a failure worth showing.
-      if (!/cancel/i.test(errorMessage(e))) {
-        setError(errorMessage(e));
-      }
+      setError(String(e));
+      throw e;
     }
-  }, [reset]);
+  }, []);
 
-  const disconnect = useCallback(async () => {
-    const client = clientRef.current;
-    reset();
-    await client?.disconnect();
-  }, [reset]);
+  const stopScan = useCallback(() => invoke("scan_stop").catch(() => undefined), []);
 
-  const print = useCallback(
-    async (canvas: HTMLCanvasElement, { density, copies }: PrintOptions) => {
-      const client = clientRef.current;
-      if (!client?.isConnected()) throw new Error("Printer is not connected");
-
+  const connect = useCallback(
+    async (printer: FoundPrinter) => {
       setError(null);
-      setStatus("printing");
-      setProgress({ page: 1, pagesTotal: copies, percent: 0 });
-
-      const taskName = client.getPrintTaskType() ?? "D11_V1";
-      const direction = client.getModelMetadata()?.printDirection ?? D11_DEFAULTS.printDirection;
-      const encoded = ImageEncoder.encodeCanvas(canvas, PageColorType.SingleColor, direction);
-      const task = client.protocol.newPrintTask(taskName, {
-        totalPages: copies,
-        density,
-        labelType: LabelType.WithGaps,
-        pageColor: PageColorType.SingleColor,
-        statusPollIntervalMs: 100,
-        statusTimeoutMs: 8_000,
-      });
-
+      setStatus("connecting");
       try {
-        await task.printInit();
-        await task.printPage(encoded, copies);
-        await task.waitForFinished();
+        const info = await invoke<RustPrinterInfo>("printer_connect", { id: printer.id });
+        const m = info.model;
+        setDetails({
+          deviceName: printer.name,
+          model: m?.model ?? "Unknown model",
+          printheadPixels: m?.printheadPixels ?? info.printheadWidth ?? D11_DEFAULTS.printheadPixels,
+          densityMin: m?.densityMin ?? D11_DEFAULTS.densityMin,
+          densityMax: m?.densityMax ?? D11_DEFAULTS.densityMax,
+          densityDefault: m?.densityDefault ?? D11_DEFAULTS.densityDefault,
+          firmware: info.softwareVersion,
+          battery: info.batteryPercents,
+        });
+        setStatus("connected");
       } catch (e) {
-        setError(errorMessage(e));
-        throw e;
-      } finally {
-        await task.printEnd().catch(() => undefined);
-        setProgress(null);
-        if (clientRef.current === client) setStatus(client.isConnected() ? "connected" : "disconnected");
+        reset();
+        setError(String(e));
       }
     },
-    [],
+    [reset],
   );
+
+  const disconnect = useCallback(async () => {
+    reset();
+    await invoke("printer_disconnect").catch(() => undefined);
+  }, [reset]);
+
+  const print = useCallback(async (canvas: HTMLCanvasElement, { density, copies }: PrintOptions) => {
+    setError(null);
+    setStatus("printing");
+    setProgress({ page: 1, pagesTotal: copies, percent: 0, sending: true });
+    try {
+      await invoke("printer_print", { width: canvas.width, height: canvas.height, bits: packBits(canvas), density, copies });
+    } catch (e) {
+      setError(String(e));
+      throw e;
+    } finally {
+      setProgress(null);
+      setStatus((s) => (s === "printing" ? "connected" : s));
+    }
+  }, []);
 
   const battery = heartbeat?.batteryPercents ?? details.battery;
 
-  return { status, details, heartbeat, battery, progress, error, setError, connect, disconnect, print };
+  return { status, details, heartbeat, battery, progress, error, setError, found, startScan, stopScan, connect, disconnect, print };
 }
 
-function errorMessage(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  return String(e);
+/** The canvas as 1 bit per pixel, MSB first, row-major; 1 = black (printed). */
+function packBits(canvas: HTMLCanvasElement): number[] {
+  const { width, height } = canvas;
+  const px = canvas.getContext("2d")!.getImageData(0, 0, width, height).data;
+  const out = new Array<number>(Math.ceil((width * height) / 8)).fill(0);
+  for (let i = 0; i < width * height; i++) {
+    // The editor already snapped the canvas to pure black and white.
+    if (px[i * 4] < 128) out[i >> 3] |= 0x80 >> (i & 7);
+  }
+  return out;
 }
