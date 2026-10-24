@@ -8,6 +8,7 @@ import { Inspector } from "./components/Inspector";
 import { LabelSettings } from "./components/LabelSettings";
 import { PrinterBadge } from "./components/PrinterBadge";
 import { PrintPanel } from "./components/PrintPanel";
+import { RollPanel } from "./components/RollPanel";
 import { SaveTemplateDialog } from "./components/SaveTemplateDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { TemplateGallery } from "./components/TemplateGallery";
@@ -292,6 +293,20 @@ export function App() {
               <LabelSettings size={doc.size} printableMm={printhead / DOTS_PER_MM} onChange={editor.setSize} />
             )}
           </div>
+          {printer.roll && connected && (
+            <RollPanel
+              key={printer.roll.barcode || printer.roll.uuid}
+              roll={printer.roll}
+              knownSize={settings.rollSizes[printer.roll.barcode || printer.roll.uuid]}
+              labelSize={doc.size}
+              onUseSize={editor.setSize}
+              onRemember={(size) => {
+                const key = printer.roll!.barcode || printer.roll!.uuid;
+                updateSettings({ rollSizes: { ...settings.rollSizes, [key]: size } });
+                editor.setSize(size);
+              }}
+            />
+          )}
           <PrintPanel printer={printer} density={density} copies={copies} onDensity={setDensity} onCopies={setCopies} onPrint={print} onConnect={connect} />
         </aside>
       </main>

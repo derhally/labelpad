@@ -15,6 +15,7 @@ pub mod req {
     pub const PRINT_QUANTITY: u8 = 0x15;
     pub const PRINT_START: u8 = 0x01;
     pub const PRINT_STATUS: u8 = 0xa3;
+    pub const RFID_INFO: u8 = 0x1a;
     pub const SET_DENSITY: u8 = 0x21;
     pub const SET_LABEL_TYPE: u8 = 0x23;
     pub const SET_PAGE_SIZE: u8 = 0x13;
@@ -32,6 +33,7 @@ pub mod resp {
     pub const PRINT_END: u8 = 0xf4;
     pub const PRINTER_STATUS_DATA: u8 = 0xb5;
     pub const PRINT_STATUS: u8 = 0xb3;
+    pub const RFID_INFO: u8 = 0x1b;
     pub const PRINT_ERROR: u8 = 0xdb;
     pub const PRINT_QUANTITY: u8 = 0x16;
     pub const PRINT_START: u8 = 0x02;
@@ -77,6 +79,7 @@ pub fn responses_for(cmd: u8) -> Option<Vec<u8>> {
         PRINTER_INFO => resp::PRINTER_INFO_RANGE.collect(),
         PRINTER_STATUS_DATA => vec![resp::PRINTER_STATUS_DATA],
         PRINT_QUANTITY => vec![resp::PRINT_QUANTITY],
+        RFID_INFO => vec![resp::RFID_INFO],
         PRINT_START => vec![resp::PRINT_START],
         PRINT_STATUS => vec![resp::PRINT_STATUS],
         SET_DENSITY => vec![resp::SET_DENSITY],

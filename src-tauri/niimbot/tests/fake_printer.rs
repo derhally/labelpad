@@ -53,6 +53,7 @@ impl FakeD11 {
                 }
             }
             req::PRINT_END => self.reply(resp::PRINT_END, &[1]),
+            req::RFID_INFO => self.reply(resp::RFID_INFO, &[0]),
             _ => {}
         }
     }
@@ -87,6 +88,7 @@ async fn connects_and_prints_two_copies_on_a_d11() {
     assert_eq!(info.battery_percents, Some(100));
     assert_eq!(info.software_version.as_deref(), Some("1.05/2.61"));
     assert_eq!(info.print_task, Some(niimbot::PrintTaskName::D11V1));
+    assert_eq!(info.rfid.as_ref().map(|r| r.tag_present), Some(false));
 
     // A 40 × 12 mm label with a black frame.
     let (w, h) = (320u32, 96u32);
@@ -107,7 +109,7 @@ async fn connects_and_prints_two_copies_on_a_d11() {
     let control: Vec<u8> = cmds.iter().copied().filter(|c| ![req::PRINT_BITMAP_ROW, req::PRINT_BITMAP_ROW_INDEXED, req::PRINT_EMPTY_ROW].contains(c)).collect();
     assert_eq!(
         control,
-        vec![req::SET_DENSITY, req::SET_LABEL_TYPE, req::PRINT_START, req::PRINT_CLEAR, req::PAGE_START, req::SET_PAGE_SIZE, req::PRINT_QUANTITY, req::PAGE_END, req::PRINT_END]
+        vec![req::SET_DENSITY, req::SET_LABEL_TYPE, req::PRINT_START, req::PRINT_CLEAR, req::PAGE_START, req::SET_PAGE_SIZE, req::PRINT_QUANTITY, req::PAGE_END, req::PRINT_END, req::RFID_INFO]
     );
     assert!(cmds.iter().any(|c| *c == req::PRINT_BITMAP_ROW), "image rows were sent");
 

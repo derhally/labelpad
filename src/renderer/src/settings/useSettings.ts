@@ -12,6 +12,8 @@ export type Settings = {
   /** Reopen the label you were working on when the app starts. */
   restoreLast: boolean;
   lastPrinter: { id: string; name: string } | null;
+  /** Label sizes you've confirmed for roll types, keyed by the barcode on the roll's tag. */
+  rollSizes: Record<string, { widthMm: number; lengthMm: number }>;
 };
 
 const KEY = "niimbot-studio.settings";
@@ -23,6 +25,7 @@ const DEFAULTS: Settings = {
   labelSize: { widthMm: 12, lengthMm: 40 },
   restoreLast: true,
   lastPrinter: null,
+  rollSizes: {},
 };
 
 export function loadSettings(): Settings {

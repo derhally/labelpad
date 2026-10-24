@@ -349,3 +349,15 @@ textarea:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accen
 .distribute .button { justify-content: flex-start; }
 .marquee { position: absolute; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; }
 .box.in-selection { outline: 1px solid var(--accent); }
+
+.roll { display: flex; flex-direction: column; gap: 8px; padding: 14px 20px 0; border-top: 1px solid var(--border); font-size: 13px; }
+.roll-head { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.roll-head svg { color: var(--muted); }
+.roll-left { margin-left: auto; font-weight: 500; font-variant-numeric: tabular-nums; }
+.roll-meter { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+.roll-meter div { height: 100%; background: var(--accent); }
+.roll-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.roll-row select { flex: 1; padding: 6px 8px; }
+.roll-ask { display: flex; flex-direction: column; gap: 6px; color: var(--muted); }
+.button.small { height: 30px; padding: 0 10px; font-size: 13px; white-space: nowrap; flex: none; }
+.roll + .print-panel { border-top: none; }

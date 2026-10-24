@@ -20,6 +20,18 @@ type RustPrinterInfo = {
   softwareVersion?: string;
   printheadWidth?: number;
   printTask?: string;
+  rfid?: RollInfo;
+};
+
+/** The label roll's RFID tag. Mirrors `niimbot::RfidInfo`. */
+export type RollInfo = {
+  tagPresent: boolean;
+  uuid: string;
+  barcode: string;
+  serialNumber: string;
+  allPaper: number;
+  usedPaper: number;
+  consumablesType: number;
 };
 
 export type HeartbeatData = {
@@ -31,6 +43,7 @@ export type HeartbeatData = {
 type PrinterEvent =
   | { type: "heartbeat"; data: HeartbeatData }
   | { type: "printProgress"; page: number; pagesTotal: number; percent: number; sending: boolean }
+  | { type: "rfid"; info: RollInfo }
   | { type: "disconnected" };
 
 export type FoundPrinter = { id: string; name: string; rssi?: number };
@@ -70,6 +83,7 @@ export function usePrinter() {
   const [progress, setProgress] = useState<PrintProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [found, setFound] = useState<FoundPrinter[]>([]);
+  const [roll, setRoll] = useState<RollInfo | null>(null);
   const statusRef = useRef(status);
   statusRef.current = status;
 
@@ -78,6 +92,7 @@ export function usePrinter() {
     setHeartbeat(null);
     setProgress(null);
     setDetails(D11_DEFAULTS);
+    setRoll(null);
   }, []);
 
   useEffect(() => {
@@ -87,6 +102,7 @@ export function usePrinter() {
         const ev = e.payload;
         if (ev.type === "heartbeat") setHeartbeat(ev.data);
         else if (ev.type === "printProgress") setProgress(ev);
+        else if (ev.type === "rfid") setRoll(ev.info.tagPresent ? ev.info : null);
         else if (ev.type === "disconnected") {
           if (statusRef.current !== "disconnected") setError("The printer disconnected.");
           reset();
@@ -127,6 +143,7 @@ export function usePrinter() {
           firmware: info.softwareVersion,
           battery: info.batteryPercents,
         });
+        setRoll(info.rfid?.tagPresent ? info.rfid : null);
         setStatus("connected");
         return true;
       } catch (e) {
@@ -160,7 +177,7 @@ export function usePrinter() {
 
   const battery = heartbeat?.batteryPercents ?? details.battery;
 
-  return { status, details, heartbeat, battery, progress, error, setError, found, startScan, stopScan, connect, disconnect, print };
+  return { status, details, heartbeat, battery, roll, progress, error, setError, found, startScan, stopScan, connect, disconnect, print };
 }
 
 /** The canvas as 1 bit per pixel, MSB first, row-major; 1 = black (printed). */

@@ -34,6 +34,7 @@ fn request_packets_match() {
         ("getPrinterInfoHardware", gen::printer_info(12)),
         ("heartbeatAdvanced1", gen::heartbeat(1)),
         ("heartbeatAdvanced2", gen::heartbeat(4)),
+        ("rfidInfo", gen::rfid_info()),
         ("heartbeatPrinterInfo", gen::heartbeat(3)),
         ("setDensity3", gen::set_density(3)),
         ("setLabelType1", gen::set_label_type(1)),
@@ -101,6 +102,20 @@ fn parsers_match() {
     assert_eq!(h.battery_percents.map(u64::from), r["batteryPercents"].as_u64());
     assert_eq!(h.lid_closed, r["lidClosed"].as_bool());
     assert_eq!(h.paper_inserted, r["paperInserted"].as_bool());
+
+    for k in ["rfid_none", "rfid_tag"] {
+        let (p, r, _) = case(k);
+        let t = parser::rfid_info(&p).unwrap();
+        assert_eq!(t.tag_present, r["tagPresent"].as_bool().unwrap(), "{k}");
+        assert_eq!(t.uuid, r["uuid"].as_str().unwrap(), "{k}");
+        assert_eq!(t.barcode, r["barCode"].as_str().unwrap(), "{k}");
+        assert_eq!(t.serial_number, r["serialNumber"].as_str().unwrap(), "{k}");
+        if t.tag_present {
+            assert_eq!(t.all_paper as u64, r["allPaper"].as_u64().unwrap(), "{k}");
+            assert_eq!(t.used_paper as u64, r["usedPaper"].as_u64().unwrap(), "{k}");
+            assert_eq!(t.consumables_type as u64, r["consumablesType"].as_u64().unwrap(), "{k}");
+        }
+    }
 
     let (p, r, _) = case("heartbeat_printer_info");
     let i = parser::heartbeat_printer_info(&p).unwrap();

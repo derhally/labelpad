@@ -159,6 +159,45 @@ pub fn version(p: &Packet) -> Result<String> {
     Ok(format!("{:.2}/{:.2}", b / 100.0 + a, (a * 256.0 + b) / 100.0))
 }
 
+/// What the label roll's RFID tag says. Genuine Niimbot rolls carry one; the
+/// size isn't on it, only a barcode that identifies the roll type.
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RfidInfo {
+    pub tag_present: bool,
+    pub uuid: String,
+    pub barcode: String,
+    pub serial_number: String,
+    /// Labels on a full roll, and how many have been used.
+    pub all_paper: u16,
+    pub used_paper: u16,
+    /// Niimbot label type (1 = gaps, 2 = black marks, 3 = continuous, ...).
+    pub consumables_type: u8,
+}
+
+pub fn rfid_info(p: &Packet) -> Result<RfidInfo> {
+    // A single byte means no tag was read.
+    if p.data.len() <= 1 {
+        return Ok(RfidInfo::default());
+    }
+    let d = &p.data;
+    let mut i = 0;
+    let mut take = |n: usize| -> Result<&[u8]> {
+        let s = d.get(i..i + n).ok_or_else(|| Error::InvalidPacket("RFID info is truncated".into()))?;
+        i += n;
+        Ok(s)
+    };
+    let uuid = take(8)?.iter().map(|b| format!("{b:02x}")).collect();
+    let len = take(1)?[0] as usize;
+    let barcode = String::from_utf8_lossy(take(len)?).into_owned();
+    let len = take(1)?[0] as usize;
+    let serial_number = String::from_utf8_lossy(take(len)?).into_owned();
+    let all_paper = u16::from_be_bytes(take(2)?.try_into().unwrap());
+    let used_paper = u16::from_be_bytes(take(2)?.try_into().unwrap());
+    let consumables_type = take(1)?[0];
+    Ok(RfidInfo { tag_present: true, uuid, barcode, serial_number, all_paper, used_paper, consumables_type })
+}
+
 pub fn boolean(p: &Packet) -> Result<bool> {
     need(p, 1)?;
     Ok(p.data[0] == 1)

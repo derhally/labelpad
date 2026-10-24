@@ -3,6 +3,7 @@
   "connect": "035555c10101c1aaaa",
   "getPrinterStatusData": "5555a50101a5aaaa",
   "getPrinterInfoModel": "555540010849aaaa",
+  "rfidInfo": "55551a01011aaaaa",
   "getPrinterInfoBattery": "555540010a4baaaa",
   "getPrinterInfoSoftware": "555540010948aaaa",
   "getPrinterInfoHardware": "555540010c4daaaa",
@@ -574,6 +575,33 @@
    "model_id": null,
    "packet": "5555490201054faaaa",
    "result": "1.05/2.61"
+  },
+  "rfid_none": {
+   "model_id": null,
+   "packet": "55551b01001aaaaa",
+   "result": {
+    "tagPresent": false,
+    "uuid": "",
+    "barCode": "",
+    "serialNumber": "",
+    "allPaper": -1,
+    "usedPaper": -1,
+    "consumablesType": 0
+   }
+  },
+  "rfid_tag": {
+   "model_id": null,
+   "packet": "55551b26881d3a51020000000d3639373238343237343335383908505a31473233343500a000250100a0acaaaa",
+   "result": {
+    "tagPresent": true,
+    "uuid": "881d3a5102000000",
+    "barCode": "6972842743589",
+    "serialNumber": "PZ1G2345",
+    "allPaper": 160,
+    "usedPaper": 37,
+    "consumablesType": 1,
+    "capacity": 160
+   }
   }
  },
  "bundle": {

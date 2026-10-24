@@ -14,7 +14,7 @@ use crate::commands::{self, connect_result, heartbeat, info, resp};
 use crate::encoder::{encode_image, Bitmap};
 use crate::models::{self, ModelMeta, PrintDirection, PrintTaskName};
 use crate::packet::{Packet, PacketReader};
-use crate::parser::{self, HeartbeatData};
+use crate::parser::{self, HeartbeatData, RfidInfo};
 use crate::transport::{Incoming, Transport};
 use crate::{generator as gen, Error, Result};
 
@@ -34,6 +34,8 @@ pub struct PrinterInfo {
     pub hardware_version: Option<String>,
     pub printhead_width: Option<u16>,
     pub print_task: Option<PrintTaskName>,
+    /// The loaded label roll, if its tag could be read.
+    pub rfid: Option<RfidInfo>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -42,6 +44,8 @@ pub enum ClientEvent {
     Heartbeat { data: HeartbeatData },
     #[serde(rename_all = "camelCase")]
     PrintProgress { page: u16, pages_total: u16, percent: u8, sending: bool },
+    /// The label roll's tag was read again (after printing, or a roll change).
+    Rfid { info: RfidInfo },
     Disconnected,
 }
 
@@ -215,6 +219,8 @@ impl Client {
             }
         }
 
+        info.rfid = self.rfid_info().await.ok();
+
         *self.inner.info.lock().unwrap() = info.clone();
         self.start_heartbeat();
         Ok(info)
@@ -224,6 +230,7 @@ impl Client {
         let client = self.clone();
         let task = tokio::spawn(async move {
             let mut fails = 0;
+            let mut paper_was_in = true;
             loop {
                 sleep(HEARTBEAT_INTERVAL).await;
                 if !client.is_connected() {
@@ -235,7 +242,14 @@ impl Client {
                         if let Some(b) = data.battery_percents {
                             client.inner.info.lock().unwrap().battery_percents = Some(b);
                         }
+                        // A roll was put in: read its tag.
+                        let paper_in = data.paper_inserted.unwrap_or(true);
+                        let reload = paper_in && !paper_was_in;
+                        paper_was_in = paper_in;
                         let _ = client.inner.events.send(ClientEvent::Heartbeat { data });
+                        if reload {
+                            client.refresh_rfid().await;
+                        }
                     }
                     Err(e) => {
                         fails += 1;
@@ -250,6 +264,19 @@ impl Client {
             }
         });
         self.inner.tasks.lock().unwrap().push(task);
+    }
+
+    /// Read the label roll's RFID tag.
+    pub async fn rfid_info(&self) -> Result<RfidInfo> {
+        parser::rfid_info(&self.send(&gen::rfid_info(), DEFAULT_TIMEOUT).await?)
+    }
+
+    /// Read the tag again, store it, and tell listeners. Failures are ignored.
+    async fn refresh_rfid(&self) {
+        if let Ok(rfid) = self.rfid_info().await {
+            self.inner.info.lock().unwrap().rfid = Some(rfid.clone());
+            let _ = self.inner.events.send(ClientEvent::Rfid { info: rfid });
+        }
     }
 
     pub async fn heartbeat(&self) -> Result<HeartbeatData> {
@@ -318,6 +345,8 @@ impl Client {
         .await;
 
         let _ = self.send(&gen::print_end(), DEFAULT_TIMEOUT).await;
+        // The tag's used-label count changes as labels print.
+        self.refresh_rfid().await;
         result
     }
 

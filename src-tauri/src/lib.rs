@@ -99,8 +99,10 @@ async fn printer_print(printer: State<'_, Printer>, width: u32, height: u32, bit
     }
     let client = printer.client().await?;
     let bitmap = Bitmap::from_packed(width, height, &bits);
+    // Use the roll's own label type (gaps, black marks, continuous...) when its tag says.
+    let label_type = client.info().rfid.filter(|r| r.tag_present && (1..=11).contains(&r.consumables_type)).map_or(1, |r| r.consumables_type);
     client
-        .print(&bitmap, PrintOptions { density, copies: copies.max(1), ..Default::default() })
+        .print(&bitmap, PrintOptions { density, copies: copies.max(1), label_type, ..Default::default() })
         .await
         .map_err(|e| e.to_string())
 }
