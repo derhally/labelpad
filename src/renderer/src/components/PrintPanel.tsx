@@ -12,6 +12,12 @@ type Props = {
   onConnect: () => void;
 };
 
+/** Sending fills the bar once; then it tracks finished labels. */
+function progressPercent(p: { page: number; pagesTotal: number; percent: number; sending: boolean }): number {
+  if (p.sending) return p.percent;
+  return Math.min(100, ((Math.max(0, p.page - 1) + p.percent / 100) / Math.max(1, p.pagesTotal)) * 100);
+}
+
 export function PrintPanel({ printer, density, copies, onDensity, onCopies, onPrint, onConnect }: Props) {
   const { status, details, heartbeat } = printer;
   const connected = status === "connected" || status === "printing";
@@ -56,10 +62,8 @@ export function PrintPanel({ printer, density, copies, onDensity, onCopies, onPr
 
       {status === "printing" && printer.progress ? (
         <div className="progress">
-          <div className="progress-bar" style={{ width: `${printer.progress.percent}%` }} />
-          <span>
-            Printing {printer.progress.page} of {printer.progress.pagesTotal}…
-          </span>
+          <div className="progress-bar" style={{ width: `${progressPercent(printer.progress)}%` }} />
+          <span>{printer.progress.sending ? "Sending to printer…" : `Printing ${printer.progress.page} of ${printer.progress.pagesTotal}…`}</span>
         </div>
       ) : (
         <button className="button primary large" onClick={connected ? onPrint : onConnect} disabled={status === "connecting"}>

@@ -54,7 +54,12 @@ export function App() {
 
   const connect = () => {
     setPickerOpen(true);
-    printer.connect().finally(() => setPickerOpen(false));
+    printer.startScan().catch(() => setPickerOpen(false));
+  };
+
+  const closePicker = () => {
+    setPickerOpen(false);
+    printer.stopScan();
   };
 
   const print = useCallback(() => {
@@ -212,7 +217,15 @@ export function App() {
         </aside>
       </main>
 
-      <DevicePicker open={pickerOpen} onClose={() => setPickerOpen(false)} />
+      <DevicePicker
+        open={pickerOpen}
+        printers={printer.found}
+        onClose={closePicker}
+        onPick={(p) => {
+          setPickerOpen(false);
+          printer.connect(p);
+        }}
+      />
       <IconPicker open={iconTarget !== null} onPick={pickIcon} onClose={() => setIconTarget(null)} />
     </div>
   );
