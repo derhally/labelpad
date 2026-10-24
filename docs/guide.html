@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Niimbot Studio Guide</title>
+  <meta name="description" content="A modern, free desktop app for designing and printing labels on the Niimbot D11 Bluetooth label printer. Windows, macOS and Linux.">
+  <meta property="og:title" content="Niimbot Studio">
+  <meta property="og:description" content="Design and print labels on your Niimbot D11 from Windows, macOS and Linux.">
+  <meta property="og:image" content="screenshots/editor-light.png">
+  <link rel="icon" href="assets/icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="assets/icon.png" alt="">Niimbot Studio</a>
+      <nav>
+        <a class="hide-sm" href="./#features">Features</a>
+        <a href="guide.html" aria-current="page">Guide</a>
+        <a href="./#download">Download</a>
+        <a class="gh" href="https://github.com/derhally/niimbot-studio" aria-label="GitHub">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.7 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+          <span class="hide-sm">GitHub</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+  <div class="wrap guide">
+    <aside class="toc">
+      <p>On this page</p>
+      <a href="#install">Install</a>
+      <a href="#connect">Connect the printer</a>
+      <a href="#editor">The editor</a>
+      <a href="#elements">What you can add</a>
+      <a href="#dates">Dates and times</a>
+      <a href="#numbering">Numbered labels</a>
+      <a href="#layout">Selecting and aligning</a>
+      <a href="#templates">Templates and files</a>
+      <a href="#printing">Printing and label rolls</a>
+      <a href="#settings">Settings</a>
+      <a href="#shortcuts">Keyboard shortcuts</a>
+      <a href="#troubleshooting">Troubleshooting</a>
+      <a href="#source">Build from source</a>
+    </aside>
+
+    <article class="doc">
+      <h1>Guide</h1>
+      <p class="lead">Everything you need to go from a fresh install to a drawer full of labels.</p>
+
+      <h2 id="install">Install</h2>
+      <p>Download the installer for your computer from the <a href="./#download">download section</a> or the <a href="https://github.com/derhally/niimbot-studio/releases/latest">latest release on GitHub</a>.</p>
+      <h3>Windows</h3>
+      <p>Run the <code>.exe</code> installer. The app isn't code-signed yet, so Windows SmartScreen may say <em>"Windows protected your PC"</em>. Click <strong>More info</strong>, then <strong>Run anyway</strong>. Use the <code>.msi</code> if you deploy software with Group Policy or Intune.</p>
+      <h3>macOS</h3>
+      <p>Open the <code>.dmg</code> for your Mac (Apple silicon for M1 and newer, Intel for older Macs) and drag Niimbot Studio into Applications. Because the app isn't notarized yet, macOS blocks the first launch. Open <strong>System Settings → Privacy &amp; Security</strong> and click <strong>Open Anyway</strong>. If macOS says the app "is damaged", run this once in Terminal:</p>
+      <pre><code>xattr -cr "/Applications/Niimbot Studio.app"</code></pre>
+      <p>The first time you connect, macOS asks for permission to use Bluetooth. Allow it.</p>
+      <h3>Linux</h3>
+      <p>Use the <code>.AppImage</code> on any distribution (make it executable with <code>chmod +x</code>), or install the <code>.deb</code> or <code>.rpm</code>. Bluetooth goes through BlueZ, so the Bluetooth service must be running and your user needs access to it, usually by being in the <code>bluetooth</code> group.</p>
+
+      <h2 id="connect">Connect the printer</h2>
+      <ol class="steps">
+        <li>Turn the D11 on. You don't need to pair it in your system's Bluetooth settings.</li>
+        <li>Click <strong>Connect printer</strong> in the top right. Printers nearby appear in a list, and the one you used last is marked.</li>
+        <li>Pick your printer. The header shows its name and battery, and the right panel shows the loaded label roll.</li>
+      </ol>
+      <img class="shot" src="screenshots/connect.png" alt="The printer list after clicking Connect printer" loading="lazy">
+
+      <h2 id="editor">The editor</h2>
+      <p>The window has three parts. On the left are the things you can add. In the middle is the label, drawn at the printer's real resolution of 8 dots per millimetre, so the preview is exactly what prints. On the right, the panel changes with what you've selected: the label's size when nothing is selected, or the settings of the item you clicked. The print controls sit at the bottom of that panel.</p>
+      <img class="shot" src="screenshots/date-time.png" alt="The editor with a date element selected and its settings on the right" loading="lazy">
+      <p>Drag items to move them, pull the handles to resize, and use the round handle to rotate. Items snap to the label's edges, its center, and each other. Undo and redo cover every change.</p>
+      <p>With nothing selected, the right panel sets the label size. Pick a common D11 size or type your own width and length in millimetres.</p>
+
+      <h2 id="elements">What you can add</h2>
+      <table>
+        <thead><tr><th>Item</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Text</strong></td><td>Any font installed on your computer, bold or italic, aligned left, center or right and top, middle or bottom. <em>Fit text to box</em> sizes it to fill the box, and <em>White on black</em> inverts it.</td></tr>
+          <tr><td><strong>Date</strong></td><td>The date and/or time at the moment you print. See <a href="#dates">Dates and times</a>.</td></tr>
+          <tr><td><strong>Image</strong></td><td>Any picture from your computer. <em>Dither</em> keeps shading in photos; <em>threshold</em> gives clean edges for logos, with a slider for how dark counts as black.</td></tr>
+          <tr><td><strong>Barcode</strong></td><td>Code 128, Code 39, EAN-13, EAN-8, UPC and ITF-14, with or without the number underneath.</td></tr>
+          <tr><td><strong>QR code</strong></td><td>Any text or link. Keep it short on a 12&nbsp;mm label so it scans reliably.</td></tr>
+          <tr><td><strong>Icon</strong></td><td>A searchable set of clean line icons: boxes, food, cables, tools, pets and more.</td></tr>
+          <tr><td><strong>Shape</strong></td><td>Rectangles, ellipses and lines, outlined or filled, for borders and dividers.</td></tr>
+        </tbody>
+      </table>
+      <h3>Choosing a font</h3>
+      <p>The font list in the text panel shows popular fonts first, then everything else installed. Click <strong>Browse</strong> to see every font with your label's text as the preview, filtered by style.</p>
+      <img class="shot" src="screenshots/fonts.png" alt="The font browser" loading="lazy">
+
+      <h2 id="dates">Dates and times</h2>
+      <p>A date item fills itself in when you print. Choose <strong>Date + time</strong>, <strong>Date</strong> or <strong>Time</strong>, then a date format. <em>System format</em> follows your computer's region settings. Times print as hours and minutes, in 12-hour or 24-hour form.</p>
+      <p><strong>Text before</strong> adds words such as <code>Made</code> or <code>Use by</code>, and <strong>Add days</strong> moves the date forward, which is how the Food container template prints a use-by date three days out.</p>
+      <p>To make your own format, type a pattern with these tokens. Anything else prints as written.</p>
+      <table>
+        <thead><tr><th>Token</th><th>Example</th><th>Token</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td><code>YYYY</code></td><td>2026</td><td><code>YY</code></td><td>26</td></tr>
+          <tr><td><code>MMMM</code></td><td>October</td><td><code>MMM</code></td><td>Oct</td></tr>
+          <tr><td><code>MM</code></td><td>10</td><td><code>M</code></td><td>10</td></tr>
+          <tr><td><code>DD</code></td><td>04</td><td><code>D</code></td><td>4</td></tr>
+          <tr><td><code>dddd</code></td><td>Saturday</td><td><code>ddd</code></td><td>Sat</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="numbering">Numbered labels</h2>
+      <p>Put <code>{count}</code> anywhere in text, a barcode or a QR code. The <strong>+ Number</strong> link under the text box adds it for you.</p>
+      <ul>
+        <li>Printing 3 copies of <code>Box {count}</code> gives <em>Box 1</em>, <em>Box 2</em> and <em>Box 3</em>.</li>
+        <li><code>{count:3}</code> pads the number to three digits: <em>001</em>, <em>002</em>, <em>003</em>.</li>
+        <li><strong>Start at</strong> and <strong>Count by</strong> appear in the print panel once a label has a number.</li>
+        <li>After printing, the counter moves on, so the next print continues where the last one stopped. It's saved with the label.</li>
+      </ul>
+      <img class="shot" src="screenshots/numbering.png" alt="A numbered label set to print 7 to 9" loading="lazy">
+
+      <h2 id="layout">Selecting and aligning</h2>
+      <p>Shift-click items to select several, or drag a box around them from an empty part of the label. Drag any selected item to move them all together.</p>
+      <p>The panel then offers alignment. <strong>To each other</strong> lines the items up with the outer edges of the selection; <strong>To the label</strong> lines them up with the label itself. <strong>Distribute</strong> spaces items evenly, which needs three or more when aligning to each other. A single item can be centered on the label from its own panel.</p>
+      <img class="shot" src="screenshots/align.png" alt="Align and distribute controls" loading="lazy">
+
+      <h2 id="templates">Templates and files</h2>
+      <p><strong>New</strong> (<kbd>Ctrl</kbd>+<kbd>N</kbd>) opens the template gallery: a blank label, the built-in templates, and any label you saved with <strong>Save as template</strong>.</p>
+      <img class="shot" src="screenshots/templates.png" alt="The template gallery" loading="lazy">
+      <p>Labels save as <code>.niimbot</code> files that you can keep, share and open again. The label you were working on reopens when you start the app, even if you never saved it. You can turn that off in Settings.</p>
+
+      <h2 id="printing">Printing and label rolls</h2>
+      <p>Choose a <strong>darkness</strong> from 1 to 3 and the number of <strong>copies</strong>, then click <strong>Print</strong> or press <kbd>Ctrl</kbd>+<kbd>P</kbd>. If labels come out faint, raise the darkness; if fine detail bleeds together, lower it.</p>
+      <p>Genuine Niimbot rolls carry an RFID tag. Once connected, the app shows how many labels are left on the roll. The tag doesn't say how big the labels are, so the first time you load a type of roll the app asks once and remembers. After that, if your label doesn't match the roll, it offers to switch.</p>
+
+      <h2 id="settings">Settings</h2>
+      <p>The gear icon in the top right opens Settings: light, dark or system theme, and whether to reopen your last label at startup. Darkness, copies, label size and your printer are remembered automatically.</p>
+      <img class="shot" src="screenshots/settings.png" alt="The settings dialog in dark mode" loading="lazy">
+
+      <h2 id="shortcuts">Keyboard shortcuts</h2>
+      <p>On a Mac, use <kbd>⌘</kbd> where this says <kbd>Ctrl</kbd>.</p>
+      <table>
+        <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td><kbd>Ctrl</kbd>+<kbd>N</kbd></td><td>New label from a template</td></tr>
+          <tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Open a label</td></tr>
+          <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td><td>Save / save as</td></tr>
+          <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>Undo / redo</td></tr>
+          <tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Select everything</td></tr>
+          <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Duplicate</td></tr>
+          <tr><td><kbd>Delete</kbd></td><td>Remove</td></tr>
+          <tr><td>Arrow keys</td><td>Nudge by 1 dot (with <kbd>Shift</kbd>, 1 mm)</td></tr>
+          <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Print</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Deselect</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="troubleshooting">Troubleshooting</h2>
+      <h3>The printer doesn't appear in the list</h3>
+      <p>Make sure it's on and not connected to your phone; a D11 talks to one device at a time. Close the Niimbot phone app or turn off your phone's Bluetooth, then try again. Check that Bluetooth is on in your computer's settings.</p>
+      <h3>It connects, then drops</h3>
+      <p>Move closer, and charge the printer if the battery is low. Disconnect and reconnect from the header.</p>
+      <h3>The print is shifted or cut off</h3>
+      <p>Check that the label size in the editor matches the roll you loaded. The roll panel warns you when they differ.</p>
+      <h3>Still stuck?</h3>
+      <p><a href="https://github.com/derhally/niimbot-studio/issues/new">Open an issue on GitHub</a> with your printer model, your operating system, and what happened.</p>
+
+      <h2 id="source">Build from source</h2>
+      <p>You need Node.js 22 or newer, <a href="https://rustup.rs">Rust</a> (stable), and the <a href="https://tauri.app/start/prerequisites/">Tauri prerequisites</a> for your system. On Linux that includes <code>libwebkit2gtk-4.1-dev</code> and <code>libdbus-1-dev</code>.</p>
+      <pre><code>git clone https://github.com/derhally/niimbot-studio
+cd niimbot-studio
+npm install
+npm run dev      # run with hot reload
+npm run build    # build an installer for this system</code></pre>
+      <p>The app is <a href="https://tauri.app">Tauri 2</a>: a React and TypeScript editor in the system webview, and a Rust backend that talks to the printer over Bluetooth LE. The printer protocol is a Rust port of <a href="https://github.com/MultiMote/niimbluelib">niimbluelib</a>, tested byte for byte against it.</p>
+      <div class="callout"><p>Releases are automatic. Commit messages follow <a href="https://www.conventionalcommits.org">Conventional Commits</a> (<code>feat:</code>, <code>fix:</code>), and release-please turns them into a release pull request with the changelog. Merging it publishes the release and attaches installers for every platform.</p></div>
+    </article>
+  </div>
+</main>
+
+  <footer>
+    <div class="wrap">
+      <span>Niimbot Studio is an independent project, not affiliated with Niimbot. MIT licensed.</span>
+      <span><a href="guide.html">Guide</a> · <a href="https://github.com/derhally/niimbot-studio">Source</a> · <a href="https://github.com/derhally/niimbot-studio/issues">Report a problem</a></span>
+    </div>
+  </footer>
+  <script src="assets/site.js"></script>
+</body>
+</html>
