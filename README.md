@@ -26,11 +26,25 @@ Turn on the D11, click **Connect printer**, and pick it from the list. You don't
 
 ## Designing labels
 
-Add text, images, barcodes, QR codes, icons and shapes from the left toolbar, then drag, resize and rotate them on the label. Everything snaps to the label edges, its centre and other elements. The preview is the exact 1-bit image that's sent to the printer.
+Add text, dates, images, barcodes, QR codes, icons and shapes from the left toolbar, then drag, resize and rotate them on the label. Everything snaps to the label edges, its center and other elements. The preview is the exact 1-bit image that's sent to the printer.
+
+- **Text** can use any font installed on your computer, aligned left, center or right and top, middle or bottom. "Browse" shows every font with your label's text, filtered by style (sans serif, serif, monospace, handwriting, display).
+- **Date** prints the date and/or time when the label is printed: date + time, date only, or time only. Dates use a format you pick (or your own pattern such as `DD/MM/YYYY`), and times are 12- or 24-hour. "Add days" makes use-by labels.
+- **Files**: labels save as `.niimbot` files (JSON). The label you were working on reopens when the app starts; turn that off in Settings.
+- **Templates**: New (Ctrl+N) offers a blank label, built-in templates, and any label you saved with "Save as template". Templates live in the app's data folder.
+- **Align and distribute**: with several items selected, line up their edges or centers with each other or with the label, or space them evenly. A single item can be aligned to the label from its panel.
+- **Numbered labels**: put `{count}` in text, a barcode or a QR code (`{count:3}` pads to 001). Printing 3 copies gives 1, 2, 3; the print panel sets the start number and step, and the next print carries on. The counter is saved with the label.
+- **Label rolls**: genuine Niimbot rolls carry an RFID tag. When connected, the app shows how many labels are left and uses the roll's label type. The tag doesn't include the size, so the first time a roll type is loaded the app asks for its size and remembers it; after that it offers to switch your label to that size.
+- **Settings** (gear icon): light, dark or system theme. Darkness, copies, label size and the last printer are remembered.
 
 | Shortcut | Action |
 | --- | --- |
+| Ctrl+N | New label from a template |
+| Ctrl+O | Open a label |
+| Ctrl+S / Ctrl+Shift+S | Save / save as |
 | Ctrl+Z / Ctrl+Shift+Z | Undo / redo |
+| Shift-click, or drag on an empty spot | Select several items |
+| Ctrl+A | Select everything |
 | Ctrl+D | Duplicate |
 | Delete | Remove |
 | Arrow keys | Nudge 1 dot (Shift: 1 mm) |
@@ -54,5 +68,5 @@ Bluetooth needs BlueZ, and your user must be allowed to use it (usually by being
 
 1. Connect over Bluetooth and print a test label
 2. Label editor: text, images, barcodes, QR codes and icons
-3. Save and open labels, settings, light and dark themes
+3. Save and open labels, templates, date/time, settings, light and dark themes
 4. Installers and CI for Windows, macOS and Linux

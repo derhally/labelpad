@@ -10,8 +10,10 @@ import type {
   LabelElement,
   QrElement,
   ShapeElement,
-  TextElement,
+  TextStyle,
 } from "./types";
+import { dateTimeText } from "./dateFormat";
+import { substitute, type Variables } from "./variables";
 
 /** Problems found while rendering, keyed by element id (e.g. an invalid EAN-13 value). */
 export type RenderIssues = Record<string, string>;
@@ -27,13 +29,17 @@ export async function renderLabel(
   width: number,
   height: number,
   elements: LabelElement[],
+  /** The time date/time elements show. */
+  now: Date = new Date(),
+  /** Values for placeholders such as {count}. */
+  vars: Variables = { count: 1 },
 ): Promise<RenderIssues> {
   const issues: RenderIssues = {};
   // Render each element first; images and icons load asynchronously.
   const layers = await Promise.all(
     elements.map(async (el) => {
       try {
-        return await renderElement(el, (msg) => (issues[el.id] = msg));
+        return await renderElement(withVariables(el, vars), now, (msg) => (issues[el.id] = msg));
       } catch (e) {
         issues[el.id] = e instanceof Error ? e.message : String(e);
         return placeholder(el);
@@ -65,12 +71,29 @@ export async function renderLabel(
   return issues;
 }
 
-async function renderElement(el: LabelElement, warn: (message: string) => void): Promise<Layer | null> {
+/** The element with its placeholders filled in. */
+function withVariables(el: LabelElement, vars: Variables): LabelElement {
+  switch (el.type) {
+    case "text":
+      return { ...el, text: substitute(el.text, vars) };
+    case "datetime":
+      return { ...el, prefix: substitute(el.prefix, vars) };
+    case "barcode":
+    case "qr":
+      return { ...el, value: substitute(el.value, vars) };
+    default:
+      return el;
+  }
+}
+
+async function renderElement(el: LabelElement, now: Date, warn: (message: string) => void): Promise<Layer | null> {
   const w = Math.max(1, Math.round(el.width));
   const h = Math.max(1, Math.round(el.height));
   switch (el.type) {
     case "text":
-      return renderText(el, w, h);
+      return renderText(el, el.text, w, h);
+    case "datetime":
+      return renderText(el, dateTimeText(el, now), w, h);
     case "image":
       return renderImage(el, w, h);
     case "barcode":
@@ -87,16 +110,14 @@ async function renderElement(el: LabelElement, warn: (message: string) => void):
 // ---------------------------------------------------------------------------
 // Text
 
-export const FONT_FAMILIES = ["Arial", "Verdana", "Segoe UI", "Georgia", "Times New Roman", "Courier New", "Impact"];
-
-function fontString(el: TextElement, size: number): string {
+function fontString(el: TextStyle, size: number): string {
   return `${el.italic ? "italic " : ""}${el.bold ? "700" : "400"} ${size}px "${el.fontFamily}", sans-serif`;
 }
 
 /** Largest font size at which every line fits the box. */
-export function fitFontSize(el: TextElement, w: number, h: number): number {
+export function fitFontSize(el: TextStyle, text: string, w: number, h: number): number {
   const ctx = makeCanvas(1, 1).getContext("2d")!;
-  const lines = el.text.split("\n");
+  const lines = text.split("\n");
   const pad = el.invert ? 4 : 0;
   let size = Math.max(6, Math.floor((h - pad * 2) / (lines.length * 1.15)));
   for (; size > 6; size--) {
@@ -107,11 +128,11 @@ export function fitFontSize(el: TextElement, w: number, h: number): number {
   return size;
 }
 
-function renderText(el: TextElement, w: number, h: number): Layer {
+function renderText(el: TextStyle, text: string, w: number, h: number): Layer {
   const canvas = makeCanvas(w, h);
   const ctx = canvas.getContext("2d")!;
-  const size = el.autoFit ? fitFontSize(el, w, h) : el.fontSize;
-  const lines = el.text.split("\n");
+  const size = el.autoFit ? fitFontSize(el, text, w, h) : el.fontSize;
+  const lines = text.split("\n");
   const lineHeight = size * 1.15;
   const pad = el.invert ? 4 : 0;
 
@@ -127,7 +148,10 @@ function renderText(el: TextElement, w: number, h: number): Layer {
   ctx.textBaseline = "middle";
   ctx.textAlign = el.align;
   const x = el.align === "left" ? pad : el.align === "right" ? w - pad : w / 2;
-  const top = h / 2 - (lineHeight * (lines.length - 1)) / 2;
+  // Centre of the first line, for the block of lines placed top, middle or bottom.
+  const block = lineHeight * lines.length;
+  const top =
+    el.valign === "top" ? pad + lineHeight / 2 : el.valign === "bottom" ? h - pad - block + lineHeight / 2 : h / 2 - (lineHeight * (lines.length - 1)) / 2;
   lines.forEach((line, i) => ctx.fillText(line, x, top + i * lineHeight));
 
   toOneBit(ctx, w, h);

@@ -17,6 +17,9 @@ pub fn printer_status_data() -> Packet {
 pub fn printer_info(kind: u8) -> Packet {
     Packet::new(req::PRINTER_INFO, [kind])
 }
+pub fn rfid_info() -> Packet {
+    Packet::new(req::RFID_INFO, [1])
+}
 pub fn heartbeat(kind: u8) -> Packet {
     Packet::new(req::HEARTBEAT, [kind])
 }

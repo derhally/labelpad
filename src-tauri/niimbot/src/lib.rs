@@ -21,7 +21,7 @@ pub use client::{Client, ClientEvent, PrintOptions, PrinterInfo};
 pub use encoder::{encode_image, Bitmap, EncodedImage};
 pub use models::{ModelMeta, PrintDirection, PrintTaskName};
 pub use packet::Packet;
-pub use parser::HeartbeatData;
+pub use parser::{HeartbeatData, RfidInfo};
 pub use transport::Transport;
 
 #[derive(Debug, thiserror::Error)]

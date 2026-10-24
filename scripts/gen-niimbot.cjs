@@ -63,6 +63,7 @@ const packets = {
   connect: G.connect(),
   getPrinterStatusData: G.getPrinterStatusData(),
   getPrinterInfoModel: G.getPrinterInfo(8),
+  rfidInfo: G.rfidInfo(),
   getPrinterInfoBattery: G.getPrinterInfo(10),
   getPrinterInfoSoftware: G.getPrinterInfo(9),
   getPrinterInfoHardware: G.getPrinterInfo(12),
@@ -164,6 +165,15 @@ const parsers = {
   model_id_2b: { packet: pkt(72, [2, 0]) },
   battery: { packet: pkt(74, [3]) },
   version: { packet: pkt(73, [1, 5]) },
+  rfid_none: { packet: pkt(27, [0]) },
+  rfid_tag: {
+    packet: pkt(27, [
+      0x88, 0x1d, 0x3a, 0x51, 0x02, 0x00, 0x00, 0x00,
+      13, ..."6972842743589".split("").map((c) => c.charCodeAt(0)),
+      8, ..."PZ1G2345".split("").map((c) => c.charCodeAt(0)),
+      0, 160, 0, 37, 1, 0, 160,
+    ]),
+  },
 };
 const parserFixtures = Object.fromEntries(
   Object.entries(parsers).map(([k, { packet, modelId }]) => {
@@ -176,6 +186,7 @@ const parserFixtures = Object.fromEntries(
     else if (k.startsWith("model_id")) result = PacketParser.parsePrinterInfoModelIdResponse(packet);
     else if (k === "battery") result = PacketParser.parseBatteryChargeLevelResponse(packet);
     else if (k === "version") result = PacketParser.parsePrinterVersionResponse(packet);
+    else if (k.startsWith("rfid")) result = PacketParser.parseRfidInfoResponse(packet);
     return [k, { model_id: modelId ?? null, packet: hex(packet.toBytes()), result }];
   }),
 );

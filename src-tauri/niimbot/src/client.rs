@@ -14,7 +14,7 @@ use crate::commands::{self, connect_result, heartbeat, info, resp};
 use crate::encoder::{encode_image, Bitmap};
 use crate::models::{self, ModelMeta, PrintDirection, PrintTaskName};
 use crate::packet::{Packet, PacketReader};
-use crate::parser::{self, HeartbeatData};
+use crate::parser::{self, HeartbeatData, RfidInfo};
 use crate::transport::{Incoming, Transport};
 use crate::{generator as gen, Error, Result};
 
@@ -34,6 +34,8 @@ pub struct PrinterInfo {
     pub hardware_version: Option<String>,
     pub printhead_width: Option<u16>,
     pub print_task: Option<PrintTaskName>,
+    /// The loaded label roll, if its tag could be read.
+    pub rfid: Option<RfidInfo>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -42,6 +44,8 @@ pub enum ClientEvent {
     Heartbeat { data: HeartbeatData },
     #[serde(rename_all = "camelCase")]
     PrintProgress { page: u16, pages_total: u16, percent: u8, sending: bool },
+    /// The label roll's tag was read again (after printing, or a roll change).
+    Rfid { info: RfidInfo },
     Disconnected,
 }
 
@@ -215,6 +219,8 @@ impl Client {
             }
         }
 
+        info.rfid = self.rfid_info().await.ok();
+
         *self.inner.info.lock().unwrap() = info.clone();
         self.start_heartbeat();
         Ok(info)
@@ -224,6 +230,7 @@ impl Client {
         let client = self.clone();
         let task = tokio::spawn(async move {
             let mut fails = 0;
+            let mut paper_was_in = true;
             loop {
                 sleep(HEARTBEAT_INTERVAL).await;
                 if !client.is_connected() {
@@ -235,7 +242,14 @@ impl Client {
                         if let Some(b) = data.battery_percents {
                             client.inner.info.lock().unwrap().battery_percents = Some(b);
                         }
+                        // A roll was put in: read its tag.
+                        let paper_in = data.paper_inserted.unwrap_or(true);
+                        let reload = paper_in && !paper_was_in;
+                        paper_was_in = paper_in;
                         let _ = client.inner.events.send(ClientEvent::Heartbeat { data });
+                        if reload {
+                            client.refresh_rfid().await;
+                        }
                     }
                     Err(e) => {
                         fails += 1;
@@ -250,6 +264,19 @@ impl Client {
             }
         });
         self.inner.tasks.lock().unwrap().push(task);
+    }
+
+    /// Read the label roll's RFID tag.
+    pub async fn rfid_info(&self) -> Result<RfidInfo> {
+        parser::rfid_info(&self.send(&gen::rfid_info(), DEFAULT_TIMEOUT).await?)
+    }
+
+    /// Read the tag again, store it, and tell listeners. Failures are ignored.
+    async fn refresh_rfid(&self) {
+        if let Ok(rfid) = self.rfid_info().await {
+            self.inner.info.lock().unwrap().rfid = Some(rfid.clone());
+            let _ = self.inner.events.send(ClientEvent::Rfid { info: rfid });
+        }
     }
 
     pub async fn heartbeat(&self) -> Result<HeartbeatData> {
@@ -268,28 +295,42 @@ impl Client {
 
     /// Print `copies` of one label. The bitmap is in canvas orientation; it's rotated here as the model requires.
     pub async fn print(&self, bitmap: &Bitmap, opts: PrintOptions) -> Result<()> {
+        self.print_pages(std::slice::from_ref(bitmap), opts).await
+    }
+
+    /// Print several different labels in one job (for numbered labels), `copies` of each.
+    pub async fn print_pages(&self, bitmaps: &[Bitmap], opts: PrintOptions) -> Result<()> {
+        if bitmaps.is_empty() {
+            return Ok(());
+        }
         let info = self.info();
         let task = info.print_task.ok_or_else(|| Error::Unsupported("This printer model isn't supported yet".into()))?;
         let meta = info.model;
         let direction = meta.map(|m| m.print_direction).unwrap_or(PrintDirection::Left);
         let printhead = meta.map(|m| m.printhead_pixels).or(info.printhead_width).unwrap_or(96);
 
-        let image = encode_image(bitmap, direction);
-        if image.cols > printhead.div_ceil(8) * 8 {
-            return Err(Error::Unsupported(format!("Label is {} dots wide but the printhead has {printhead}", image.cols)));
+        if !matches!(task, PrintTaskName::D11V1 | PrintTaskName::D110) {
+            return Err(Error::Unsupported(format!("Printing with the {task:?} task isn't supported yet")));
         }
 
-        let size = match task {
-            PrintTaskName::D11V1 => gen::set_page_size_2b(image.rows),
-            PrintTaskName::D110 => gen::set_page_size_4b(image.rows, image.cols),
-            other => return Err(Error::Unsupported(format!("Printing with the {other:?} task isn't supported yet"))),
-        };
+        // Each page: clear, start, size, quantity, image rows, end.
+        let mut pages = Vec::with_capacity(bitmaps.len());
+        for bitmap in bitmaps {
+            let image = encode_image(bitmap, direction);
+            if image.cols > printhead.div_ceil(8) * 8 {
+                return Err(Error::Unsupported(format!("Label is {} dots wide but the printhead has {printhead}", image.cols)));
+            }
+            let size = match task {
+                PrintTaskName::D11V1 => gen::set_page_size_2b(image.rows),
+                _ => gen::set_page_size_4b(image.rows, image.cols),
+            };
+            let mut packets = vec![gen::print_clear(), gen::page_start(), size, gen::set_print_quantity(opts.copies)];
+            packets.extend(gen::write_image_data(&image, printhead));
+            packets.push(gen::page_end());
+            pages.push(packets);
+        }
 
-        let mut page_packets = vec![gen::print_clear(), gen::page_start(), size, gen::set_print_quantity(opts.copies)];
-        page_packets.extend(gen::write_image_data(&image, printhead));
-        page_packets.push(gen::page_end());
-
-        let total = opts.copies;
+        let total = opts.copies.saturating_mul(bitmaps.len() as u16);
         let events = self.inner.events.clone();
         let progress = |percent: u8, page: u16, sending: bool| {
             let _ = events.send(ClientEvent::PrintProgress { page, pages_total: total, percent, sending });
@@ -300,15 +341,19 @@ impl Client {
                 .await?;
             // Subscribe before sending so an early page-index packet isn't missed.
             let mut rx = self.inner.packets.subscribe();
+            let count = pages.len();
             let mut last = 0;
-            self.send_all(&page_packets, opts.page_timeout, |i, n| {
-                let pct = (i * 100 / n) as u8;
-                if pct >= last + 5 || i == n {
-                    last = pct;
-                    progress(pct, 1, true);
-                }
-            })
-            .await?;
+            for (index, packets) in pages.iter().enumerate() {
+                self.send_all(packets, opts.page_timeout, |i, n| {
+                    // Sending fills the bar once across all pages.
+                    let pct = ((index * 100 + i * 100 / n) / count) as u8;
+                    if pct >= last + 5 || (i == n && index + 1 == count) {
+                        last = pct;
+                        progress(pct, 1, true);
+                    }
+                })
+                .await?;
+            }
             progress(0, 1, false);
             match task {
                 PrintTaskName::D11V1 => self.wait_page_index(&mut rx, total, opts.status_timeout).await,
@@ -318,6 +363,8 @@ impl Client {
         .await;
 
         let _ = self.send(&gen::print_end(), DEFAULT_TIMEOUT).await;
+        // The tag's used-label count changes as labels print.
+        self.refresh_rfid().await;
         result
     }
 

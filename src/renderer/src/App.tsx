@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Bluetooth, Printer, Redo2, Undo2, Unplug } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Bluetooth, FilePlus2, FolderOpen, LayoutTemplate, Printer, Redo2, Save, Settings as SettingsIcon, Undo2, Unplug } from "lucide-react";
+import { MultiSelection } from "./components/AlignControls";
 import { DevicePicker } from "./components/DevicePicker";
 import { EditorStage } from "./components/EditorStage";
 import { IconPicker } from "./components/IconPicker";
@@ -7,50 +8,88 @@ import { Inspector } from "./components/Inspector";
 import { LabelSettings } from "./components/LabelSettings";
 import { PrinterBadge } from "./components/PrinterBadge";
 import { PrintPanel } from "./components/PrintPanel";
+import { RollPanel } from "./components/RollPanel";
+import { SaveTemplateDialog } from "./components/SaveTemplateDialog";
+import { SettingsDialog } from "./components/SettingsDialog";
+import { TemplateGallery } from "./components/TemplateGallery";
+import { fromTemplate, saveTemplate } from "./editor/templates";
 import { Toolbar } from "./components/Toolbar";
 import { makeElement, starterDoc } from "./editor/defaults";
 import { importImage, pickImageFile } from "./editor/importImage";
-import type { RenderIssues } from "./editor/render";
+import { renderLabel, type RenderIssues } from "./editor/render";
 import { newId, type ElementType, type LabelElement } from "./editor/types";
 import { useDocument } from "./editor/useDocument";
+import { DEFAULT_COUNTER, hasCounter } from "./editor/variables";
+import { loadDraft, useLabelFile } from "./editor/useLabelFile";
+import { loadSettings, useSettings } from "./settings/useSettings";
+import type { LabelDoc } from "./editor/types";
 import { canvasSize, DOTS_PER_MM } from "./printer/label";
 import { usePrinter } from "./printer/usePrinter";
 
 /** Where the icon picker's choice goes: a new element, or an existing icon. */
 type IconTarget = { mode: "add" } | { mode: "replace"; id: string };
 
+/** What the editor opens with: the last label if it was kept, otherwise the starter label. */
+function initialDocument() {
+  const draft = loadSettings().restoreLast ? loadDraft() : null;
+  return draft ?? { doc: starterDoc(), path: null, dirty: false };
+}
+
 export function App() {
   const printer = usePrinter();
   const { status, details } = printer;
-  const editor = useDocument(starterDoc());
+  const { settings, update: updateSettings } = useSettings();
+  const [initial] = useState(initialDocument);
+  const editor = useDocument(initial.doc);
   const { doc } = editor;
+  const file = useLabelFile(editor, {
+    initialPath: initial.path,
+    initialDirty: initial.dirty,
+  });
+  const blankDoc: LabelDoc = { version: 1, size: settings.labelSize, elements: [] };
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const startFrom = async (template: LabelDoc) => {
+    setGalleryOpen(false);
+    if (await file.newFile(fromTemplate(template))) setSelectedIds([]);
+  };
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const setSelectedId = (id: string | null) => setSelectedIds(id ? [id] : []);
   const [issues, setIssues] = useState<RenderIssues>({});
   const [pickerOpen, setPickerOpen] = useState(false);
   const [iconTarget, setIconTarget] = useState<IconTarget | null>(null);
-  const [density, setDensity] = useState(details.densityDefault);
-  const [copies, setCopies] = useState(1);
-  const renderedRef = useRef<HTMLCanvasElement | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const density = settings.density ?? details.densityDefault;
+  const copies = settings.copies;
+  const setDensity = (d: number) => updateSettings({ density: d });
+  const setCopies = (c: number) => updateSettings({ copies: c });
 
   const printhead = details.printheadPixels ?? 96;
   const dots = canvasSize(doc.size, printhead);
-  const selected = doc.elements.find((e) => e.id === selectedId) ?? null;
+  const selection = doc.elements.filter((e) => selectedIds.includes(e.id));
+  const selected = selection.length === 1 ? selection[0] : null;
   const connected = status === "connected" || status === "printing";
 
+  // Keep the saved darkness within what this printer supports.
   useEffect(() => {
-    setDensity((d) => Math.min(Math.max(d, details.densityMin), details.densityMax));
-  }, [details.densityMin, details.densityMax]);
+    if (settings.density !== null && (settings.density < details.densityMin || settings.density > details.densityMax)) {
+      updateSettings({ density: Math.min(Math.max(settings.density, details.densityMin), details.densityMax) });
+    }
+  }, [settings.density, details.densityMin, details.densityMax, updateSettings]);
 
-  // Forget the selection if its element was undone away.
+  // New labels start at the size you used last.
   useEffect(() => {
-    if (selectedId && !selected) setSelectedId(null);
-  }, [selectedId, selected]);
+    updateSettings({ labelSize: doc.size });
+  }, [doc.size, updateSettings]);
 
-  const onRendered = useCallback((canvas: HTMLCanvasElement, found: RenderIssues) => {
-    renderedRef.current = canvas;
-    setIssues(found);
-  }, []);
+  // Forget selected elements that were undone away.
+  useEffect(() => {
+    if (selection.length !== selectedIds.length) setSelectedIds(selection.map((e) => e.id));
+  }, [selection, selectedIds]);
+
+  const onRendered = useCallback((_canvas: HTMLCanvasElement, found: RenderIssues) => setIssues(found), []);
 
   const connect = () => {
     setPickerOpen(true);
@@ -62,11 +101,34 @@ export function App() {
     printer.stopScan();
   };
 
-  const print = useCallback(() => {
-    if (renderedRef.current && status === "connected") {
-      printer.print(renderedRef.current, { density, copies }).catch(() => undefined);
+  const numbered = hasCounter(doc);
+  const counter = doc.counter ?? DEFAULT_COUNTER;
+
+  // Render again at print time so dates and times are current. Numbered
+  // labels render once per number and print as separate pages.
+  const print = useCallback(async () => {
+    if (status !== "connected") return;
+    const now = new Date();
+    const render = async (count: number) => {
+      const canvas = document.createElement("canvas");
+      await renderLabel(canvas, dots.width, dots.height, doc.elements, now, { count });
+      return canvas;
+    };
+    try {
+      if (numbered) {
+        const pages = await Promise.all(Array.from({ length: copies }, (_, i) => render(counter.start + i * counter.step)));
+        await printer.print(pages, { density, copies: 1 });
+        // The next print carries on from here.
+        editor.setCounter({ ...counter, start: counter.start + copies * counter.step });
+      } else {
+        await printer.print([await render(counter.start)], { density, copies });
+      }
+    } catch {
+      // The print panel shows the error.
     }
-  }, [printer, status, density, copies]);
+  }, [printer, editor, status, density, copies, dots.width, dots.height, doc.elements, numbered, counter]);
+
+  const clock = useMinuteClock(doc.elements.some((e) => e.type === "datetime"));
 
   const addElement = (el: LabelElement) => {
     editor.add(el);
@@ -99,17 +161,17 @@ export function App() {
   };
 
   const duplicate = useCallback(() => {
-    if (!selected) return;
-    const copy = { ...selected, id: newId(), x: selected.x + DOTS_PER_MM, y: selected.y + DOTS_PER_MM };
-    editor.add(copy);
-    setSelectedId(copy.id);
-  }, [selected, editor]);
+    if (!selection.length) return;
+    const copies = selection.map((el) => ({ ...el, id: newId(), x: el.x + DOTS_PER_MM, y: el.y + DOTS_PER_MM }));
+    editor.addMany(copies);
+    setSelectedIds(copies.map((c) => c.id));
+  }, [selection, editor]);
 
   const remove = useCallback(() => {
-    if (!selected) return;
-    editor.remove(selected.id);
-    setSelectedId(null);
-  }, [selected, editor]);
+    if (!selection.length) return;
+    editor.removeMany(selection.map((e) => e.id));
+    setSelectedIds([]);
+  }, [selection, editor]);
 
   // Keyboard shortcuts, ignored while typing in a field.
   useEffect(() => {
@@ -117,7 +179,16 @@ export function App() {
       const typing = e.target instanceof HTMLElement && e.target.closest("input, textarea, select");
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
-      if (mod && key === "z" && !typing) {
+      if (mod && key === "s") {
+        e.preventDefault();
+        void (e.shiftKey ? file.saveAs() : file.saveFile());
+      } else if (mod && key === "o") {
+        e.preventDefault();
+        void file.openFile();
+      } else if (mod && key === "n") {
+        e.preventDefault();
+        setGalleryOpen(true);
+      } else if (mod && key === "z" && !typing) {
         e.preventDefault();
         e.shiftKey ? editor.redo() : editor.undo();
       } else if (mod && key === "y" && !typing) {
@@ -131,22 +202,25 @@ export function App() {
       } else if (mod && key === "d") {
         e.preventDefault();
         duplicate();
-      } else if ((e.key === "Delete" || e.key === "Backspace") && selected) {
+      } else if (mod && key === "a") {
+        e.preventDefault();
+        setSelectedIds(doc.elements.map((el) => el.id));
+      } else if ((e.key === "Delete" || e.key === "Backspace") && selection.length) {
         e.preventDefault();
         remove();
       } else if (e.key === "Escape") {
-        setSelectedId(null);
-      } else if (selected && e.key.startsWith("Arrow")) {
+        setSelectedIds([]);
+      } else if (selection.length && e.key.startsWith("Arrow")) {
         e.preventDefault();
         const step = e.shiftKey ? DOTS_PER_MM : 1;
         const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
         const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
-        editor.update(selected.id, { x: selected.x + dx, y: selected.y + dy });
+        editor.updateMany(Object.fromEntries(selection.map((el) => [el.id, { x: el.x + dx, y: el.y + dy }])));
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [editor, selected, duplicate, remove, print]);
+  }, [editor, file, doc.elements, selection, duplicate, remove, print]);
 
   return (
     <div className="app">
@@ -156,8 +230,25 @@ export function App() {
             <Printer size={18} />
           </span>
           Niimbot Studio
+          <span className="doc-title" title={file.path ?? undefined}>
+            {file.title}
+            {file.dirty && <span className="dirty" aria-label="Unsaved changes" />}
+          </span>
         </div>
         <div className="topbar-center">
+          <button className="icon-button" onClick={() => setGalleryOpen(true)} title="New label (Ctrl+N)">
+            <FilePlus2 size={18} />
+          </button>
+          <button className="icon-button" onClick={() => void file.openFile()} title="Open (Ctrl+O)">
+            <FolderOpen size={18} />
+          </button>
+          <button className="icon-button" onClick={() => void file.saveFile()} title="Save (Ctrl+S)">
+            <Save size={18} />
+          </button>
+          <button className="icon-button" onClick={() => setSaveTemplateOpen(true)} title="Save as template">
+            <LayoutTemplate size={18} />
+          </button>
+          <span className="divider" />
           <button className="icon-button" onClick={editor.undo} disabled={!editor.canUndo} title="Undo (Ctrl+Z)">
             <Undo2 size={18} />
           </button>
@@ -176,6 +267,9 @@ export function App() {
               <Bluetooth size={16} /> Connect printer
             </button>
           )}
+          <button className="icon-button" onClick={() => setSettingsOpen(true)} title="Settings">
+            <SettingsIcon size={18} />
+          </button>
         </div>
       </header>
 
@@ -186,12 +280,15 @@ export function App() {
           elements={doc.elements}
           width={dots.width}
           height={dots.height}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
+          selectedIds={selectedIds}
+          onSelect={setSelectedIds}
+          onChangeMany={editor.updateMany}
           onChange={editor.update}
           onGestureStart={editor.checkpoint}
           onEditText={() => document.getElementById("inspector-text")?.focus()}
           onRendered={onRendered}
+          clock={clock}
+          count={counter.start}
         />
 
         <aside className="panel">
@@ -208,25 +305,70 @@ export function App() {
                 onReorder={(to) => editor.reorder(selected.id, to)}
                 onPickIcon={() => setIconTarget({ mode: "replace", id: selected.id })}
                 onReplaceImage={() => void addImage(selected.id)}
+                label={dots}
+                onArrange={editor.updateMany}
               />
+            ) : selection.length > 1 ? (
+              <MultiSelection els={selection} label={dots} onApply={editor.updateMany} onDuplicate={duplicate} onDelete={remove} />
             ) : (
               <LabelSettings size={doc.size} printableMm={printhead / DOTS_PER_MM} onChange={editor.setSize} />
             )}
           </div>
-          <PrintPanel printer={printer} density={density} copies={copies} onDensity={setDensity} onCopies={setCopies} onPrint={print} onConnect={connect} />
+          {printer.roll && connected && (
+            <RollPanel
+              key={printer.roll.barcode || printer.roll.uuid}
+              roll={printer.roll}
+              knownSize={settings.rollSizes[printer.roll.barcode || printer.roll.uuid]}
+              labelSize={doc.size}
+              onUseSize={editor.setSize}
+              onRemember={(size) => {
+                const key = printer.roll!.barcode || printer.roll!.uuid;
+                updateSettings({ rollSizes: { ...settings.rollSizes, [key]: size } });
+                editor.setSize(size);
+              }}
+            />
+          )}
+          <PrintPanel
+            numbering={numbered ? { ...counter, onChange: editor.setCounter } : undefined}
+            printer={printer} density={density} copies={copies} onDensity={setDensity} onCopies={setCopies} onPrint={print} onConnect={connect} />
         </aside>
       </main>
 
       <DevicePicker
         open={pickerOpen}
         printers={printer.found}
+        lastPrinterId={settings.lastPrinter?.id}
         onClose={closePicker}
-        onPick={(p) => {
+        onPick={async (p) => {
           setPickerOpen(false);
-          printer.connect(p);
+          if (await printer.connect(p)) updateSettings({ lastPrinter: { id: p.id, name: p.name } });
         }}
       />
+      <TemplateGallery open={galleryOpen} blank={blankDoc} onPick={(d) => void startFrom(d)} onClose={() => setGalleryOpen(false)} />
+      <SaveTemplateDialog
+        open={saveTemplateOpen}
+        defaultName={file.path ? file.title : ""}
+        onSave={async (name) => void (await saveTemplate(name, doc))}
+        onClose={() => setSaveTemplateOpen(false)}
+      />
+      <SettingsDialog open={settingsOpen} settings={settings} onChange={updateSettings} onClose={() => setSettingsOpen(false)} />
       <IconPicker open={iconTarget !== null} onPick={pickIcon} onClose={() => setIconTarget(null)} />
     </div>
   );
+}
+
+/** A number that changes at the start of every minute while `enabled`. */
+function useMinuteClock(enabled: boolean): number {
+  const [minute, setMinute] = useState(() => Math.floor(Date.now() / 60000));
+  useEffect(() => {
+    if (!enabled) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      setMinute(Math.floor(Date.now() / 60000));
+      timer = setTimeout(tick, 60000 - (Date.now() % 60000) + 50);
+    };
+    tick();
+    return () => clearTimeout(timer);
+  }, [enabled]);
+  return enabled ? minute : 0;
 }

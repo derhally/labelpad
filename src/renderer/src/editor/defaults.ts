@@ -1,5 +1,6 @@
 import { fitFontSize } from "./render";
-import { newId, type ElementType, type LabelDoc, type LabelElement, type TextElement } from "./types";
+import { systemUses12Hour } from "./dateFormat";
+import { newId, type DateTimeElement, type ElementType, type LabelDoc, type LabelElement, type TextElement } from "./types";
 
 /** A fresh element of the given type, centred on a label of the given size in dots. */
 export function makeElement(type: ElementType, label: { width: number; height: number }, extra?: Partial<LabelElement>): LabelElement {
@@ -25,9 +26,30 @@ export function makeElement(type: ElementType, label: { width: number; height: n
         bold: true,
         italic: false,
         align: "center",
+        valign: "middle",
         invert: false,
       };
-      el.fontSize = fitFontSize(el, el.width, el.height);
+      el.fontSize = fitFontSize(el, el.text, el.width, el.height);
+      return { ...el, ...extra } as LabelElement;
+    }
+    case "datetime": {
+      const el: DateTimeElement = {
+        ...box(Math.min(label.width - 16, 200), Math.round(h * 0.5)),
+        type: "datetime",
+        show: "date",
+        dateFormat: "locale",
+        hour12: systemUses12Hour(),
+        prefix: "",
+        offsetDays: 0,
+        fontFamily: "Arial",
+        fontSize: 24,
+        autoFit: true,
+        bold: false,
+        italic: false,
+        align: "center",
+        valign: "middle",
+        invert: false,
+      };
       return { ...el, ...extra } as LabelElement;
     }
     case "image":
