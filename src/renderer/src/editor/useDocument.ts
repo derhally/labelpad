@@ -54,7 +54,18 @@ export function useDocument(initial: LabelDoc) {
           }),
           opts,
         ),
+      /** Patch several elements as one undo step (or one transient change). */
+      updateMany: (patches: Record<string, Partial<LabelElement>>, opts?: { transient?: boolean }) =>
+        apply(
+          (d) => ({
+            ...d,
+            elements: d.elements.map((e) => (patches[e.id] ? ({ ...e, ...patches[e.id] } as LabelElement) : e)),
+          }),
+          opts,
+        ),
       remove: (id: string) => apply((d) => ({ ...d, elements: d.elements.filter((e) => e.id !== id) })),
+      removeMany: (ids: string[]) => apply((d) => ({ ...d, elements: d.elements.filter((e) => !ids.includes(e.id)) })),
+      addMany: (els: LabelElement[]) => apply((d) => ({ ...d, elements: [...d.elements, ...els] })),
       /** Move an element up (+1) or down (-1) the stack, or to the very top/bottom. */
       reorder: (id: string, to: "up" | "down" | "top" | "bottom") =>
         apply((d) => {

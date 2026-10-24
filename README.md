@@ -32,6 +32,7 @@ Add text, dates, images, barcodes, QR codes, icons and shapes from the left tool
 - **Date** prints the date and/or time when the label is printed: date + time, date only, or time only. Dates use a format you pick (or your own pattern such as `DD/MM/YYYY`), and times are 12- or 24-hour. "Add days" makes use-by labels.
 - **Files**: labels save as `.niimbot` files (JSON). The label you were working on reopens when the app starts; turn that off in Settings.
 - **Templates**: New (Ctrl+N) offers a blank label, built-in templates, and any label you saved with "Save as template". Templates live in the app's data folder.
+- **Align and distribute**: with several items selected, line up their edges or centers with each other or with the label, or space them evenly. A single item can be aligned to the label from its panel.
 - **Settings** (gear icon): light, dark or system theme. Darkness, copies, label size and the last printer are remembered.
 
 | Shortcut | Action |
@@ -40,6 +41,8 @@ Add text, dates, images, barcodes, QR codes, icons and shapes from the left tool
 | Ctrl+O | Open a label |
 | Ctrl+S / Ctrl+Shift+S | Save / save as |
 | Ctrl+Z / Ctrl+Shift+Z | Undo / redo |
+| Shift-click, or drag on an empty spot | Select several items |
+| Ctrl+A | Select everything |
 | Ctrl+D | Duplicate |
 | Delete | Remove |
 | Arrow keys | Nudge 1 dot (Shift: 1 mm) |

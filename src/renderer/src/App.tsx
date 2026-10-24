@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bluetooth, FilePlus2, FolderOpen, LayoutTemplate, Printer, Redo2, Save, Settings as SettingsIcon, Undo2, Unplug } from "lucide-react";
+import { MultiSelection } from "./components/AlignControls";
 import { DevicePicker } from "./components/DevicePicker";
 import { EditorStage } from "./components/EditorStage";
 import { IconPicker } from "./components/IconPicker";
@@ -49,10 +50,11 @@ export function App() {
 
   const startFrom = async (template: LabelDoc) => {
     setGalleryOpen(false);
-    if (await file.newFile(fromTemplate(template))) setSelectedId(null);
+    if (await file.newFile(fromTemplate(template))) setSelectedIds([]);
   };
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const setSelectedId = (id: string | null) => setSelectedIds(id ? [id] : []);
   const [issues, setIssues] = useState<RenderIssues>({});
   const [pickerOpen, setPickerOpen] = useState(false);
   const [iconTarget, setIconTarget] = useState<IconTarget | null>(null);
@@ -64,7 +66,8 @@ export function App() {
 
   const printhead = details.printheadPixels ?? 96;
   const dots = canvasSize(doc.size, printhead);
-  const selected = doc.elements.find((e) => e.id === selectedId) ?? null;
+  const selection = doc.elements.filter((e) => selectedIds.includes(e.id));
+  const selected = selection.length === 1 ? selection[0] : null;
   const connected = status === "connected" || status === "printing";
 
   // Keep the saved darkness within what this printer supports.
@@ -79,10 +82,10 @@ export function App() {
     updateSettings({ labelSize: doc.size });
   }, [doc.size, updateSettings]);
 
-  // Forget the selection if its element was undone away.
+  // Forget selected elements that were undone away.
   useEffect(() => {
-    if (selectedId && !selected) setSelectedId(null);
-  }, [selectedId, selected]);
+    if (selection.length !== selectedIds.length) setSelectedIds(selection.map((e) => e.id));
+  }, [selection, selectedIds]);
 
   const onRendered = useCallback((_canvas: HTMLCanvasElement, found: RenderIssues) => setIssues(found), []);
 
@@ -137,17 +140,17 @@ export function App() {
   };
 
   const duplicate = useCallback(() => {
-    if (!selected) return;
-    const copy = { ...selected, id: newId(), x: selected.x + DOTS_PER_MM, y: selected.y + DOTS_PER_MM };
-    editor.add(copy);
-    setSelectedId(copy.id);
-  }, [selected, editor]);
+    if (!selection.length) return;
+    const copies = selection.map((el) => ({ ...el, id: newId(), x: el.x + DOTS_PER_MM, y: el.y + DOTS_PER_MM }));
+    editor.addMany(copies);
+    setSelectedIds(copies.map((c) => c.id));
+  }, [selection, editor]);
 
   const remove = useCallback(() => {
-    if (!selected) return;
-    editor.remove(selected.id);
-    setSelectedId(null);
-  }, [selected, editor]);
+    if (!selection.length) return;
+    editor.removeMany(selection.map((e) => e.id));
+    setSelectedIds([]);
+  }, [selection, editor]);
 
   // Keyboard shortcuts, ignored while typing in a field.
   useEffect(() => {
@@ -178,22 +181,25 @@ export function App() {
       } else if (mod && key === "d") {
         e.preventDefault();
         duplicate();
-      } else if ((e.key === "Delete" || e.key === "Backspace") && selected) {
+      } else if (mod && key === "a") {
+        e.preventDefault();
+        setSelectedIds(doc.elements.map((el) => el.id));
+      } else if ((e.key === "Delete" || e.key === "Backspace") && selection.length) {
         e.preventDefault();
         remove();
       } else if (e.key === "Escape") {
-        setSelectedId(null);
-      } else if (selected && e.key.startsWith("Arrow")) {
+        setSelectedIds([]);
+      } else if (selection.length && e.key.startsWith("Arrow")) {
         e.preventDefault();
         const step = e.shiftKey ? DOTS_PER_MM : 1;
         const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
         const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
-        editor.update(selected.id, { x: selected.x + dx, y: selected.y + dy });
+        editor.updateMany(Object.fromEntries(selection.map((el) => [el.id, { x: el.x + dx, y: el.y + dy }])));
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [editor, file, selected, duplicate, remove, print]);
+  }, [editor, file, doc.elements, selection, duplicate, remove, print]);
 
   return (
     <div className="app">
@@ -253,8 +259,9 @@ export function App() {
           elements={doc.elements}
           width={dots.width}
           height={dots.height}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
+          selectedIds={selectedIds}
+          onSelect={setSelectedIds}
+          onChangeMany={editor.updateMany}
           onChange={editor.update}
           onGestureStart={editor.checkpoint}
           onEditText={() => document.getElementById("inspector-text")?.focus()}
@@ -276,7 +283,11 @@ export function App() {
                 onReorder={(to) => editor.reorder(selected.id, to)}
                 onPickIcon={() => setIconTarget({ mode: "replace", id: selected.id })}
                 onReplaceImage={() => void addImage(selected.id)}
+                label={dots}
+                onArrange={editor.updateMany}
               />
+            ) : selection.length > 1 ? (
+              <MultiSelection els={selection} label={dots} onApply={editor.updateMany} onDuplicate={duplicate} onDelete={remove} />
             ) : (
               <LabelSettings size={doc.size} printableMm={printhead / DOTS_PER_MM} onChange={editor.setSize} />
             )}

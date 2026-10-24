@@ -8,6 +8,7 @@ import { BARCODE_FORMATS, type LabelElement, type TextStyle } from "../editor/ty
 import { useState } from "react";
 import { FontBrowser } from "./FontBrowser";
 import { FontPicker } from "./FontPicker";
+import { AlignControls } from "./AlignControls";
 import { spell } from "../locale";
 import { DOTS_PER_MM } from "../printer/label";
 import { Field, NumberInput, Segmented, Toggle } from "./fields";
@@ -25,11 +26,13 @@ type Props = {
   onReorder: (to: "up" | "down" | "top" | "bottom") => void;
   onPickIcon: () => void;
   onReplaceImage: () => void;
+  label: { width: number; height: number };
+  onArrange: (patches: Record<string, Partial<LabelElement>>) => void;
 };
 
 const CUSTOM = "__custom";
 
-export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDelete, onReorder, onPickIcon, onReplaceImage }: Props) {
+export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDelete, onReorder, onPickIcon, onReplaceImage, label, onArrange }: Props) {
   const meta = TYPE_META[el.type];
   // Typing is one undo step per focus, not per keystroke.
   const typing = { onFocus: onCheckpoint };
@@ -260,6 +263,8 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
       )}
 
       <div className="geometry">
+        <span className="section-label">Position on label</span>
+        <AlignControls els={[el]} label={label} onApply={onArrange} />
         <span className="section-label">Position and size (mm)</span>
         <div className="grid-2">
           <NumberInput label="X" step={0.5} value={mm(el.x)} onChange={(v) => onChange({ x: v * DOTS_PER_MM })} />
