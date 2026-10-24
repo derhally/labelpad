@@ -7,6 +7,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Build installers for this existing release tag (e.g. v0.1.0) and attach them to it
+        required: false
 
 permissions:
   contents: write
@@ -24,7 +28,7 @@ jobs:
 
   build:
     needs: release-please
-    if: needs.release-please.outputs.created == 'true'
+    if: needs.release-please.outputs.created == 'true' || inputs.tag != ''
     strategy:
       fail-fast: false
       matrix:
@@ -33,22 +37,20 @@ jobs:
             args: ""
           - platform: macos-latest
             args: --target aarch64-apple-darwin
-          - platform: macos-latest
-            args: --target x86_64-apple-darwin
           - platform: ubuntu-22.04
             args: ""
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ needs.release-please.outputs.tag }}
+          ref: ${{ inputs.tag || needs.release-please.outputs.tag }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
-          targets: ${{ startsWith(matrix.platform, 'macos') && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ startsWith(matrix.platform, 'macos') && 'aarch64-apple-darwin' || '' }}
       - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
@@ -62,7 +64,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ needs.release-please.outputs.tag }}
-          releaseName: LabelPad ${{ needs.release-please.outputs.tag }}
+          tagName: ${{ inputs.tag || needs.release-please.outputs.tag }}
+          releaseName: LabelPad ${{ inputs.tag || needs.release-please.outputs.tag }}
           releaseDraft: false
           args: ${{ matrix.args }}
+          # package.json has no "tauri" script, which the action runs by default.
+          tauriScript: npx tauri
