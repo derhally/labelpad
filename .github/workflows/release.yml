@@ -63,6 +63,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ needs.release-please.outputs.tag }}
-          releaseName: Niimbot Studio ${{ needs.release-please.outputs.tag }}
+          releaseName: LabelPad ${{ needs.release-please.outputs.tag }}
           releaseDraft: false
           args: ${{ matrix.args }}

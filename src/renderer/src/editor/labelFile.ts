@@ -2,9 +2,11 @@ import { makeElement } from "./defaults";
 import { newId, type ElementType, type LabelDoc, type LabelElement } from "./types";
 
 /** Label files are JSON with this marker, so other JSON files are refused clearly. */
-const FORMAT = "niimbot-studio-label";
-export const FILE_EXTENSION = "niimbot";
-export const FILE_FILTERS = [{ name: "Niimbot label", extensions: [FILE_EXTENSION] }];
+const FORMAT = "labelpad-label";
+/** Marker and extension from before the app was renamed; such files still open. */
+const OLD_FORMAT = "niimbot-studio-label";
+export const FILE_EXTENSION = "labelpad";
+export const FILE_FILTERS = [{ name: "LabelPad label", extensions: [FILE_EXTENSION, "niimbot"] }];
 
 const TYPES: ElementType[] = ["text", "image", "barcode", "qr", "icon", "shape"];
 
@@ -21,10 +23,10 @@ export function parseLabel(text: string): LabelDoc {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error("This file isn't a Niimbot Studio label.");
+    throw new Error("This file isn't a LabelPad label.");
   }
-  if (!isObject(data) || data.format !== FORMAT) throw new Error("This file isn't a Niimbot Studio label.");
-  if (typeof data.version !== "number" || data.version > 1) throw new Error("This label was saved by a newer version of Niimbot Studio.");
+  if (!isObject(data) || (data.format !== FORMAT && data.format !== OLD_FORMAT)) throw new Error("This file isn't a LabelPad label.");
+  if (typeof data.version !== "number" || data.version > 1) throw new Error("This label was saved by a newer version of LabelPad.");
 
   const size = isObject(data.size) ? data.size : {};
   const widthMm = positive(size.widthMm, 12);
@@ -49,10 +51,10 @@ export function parseLabel(text: string): LabelDoc {
   return { version: 1, size: { widthMm, lengthMm }, elements, ...(counter && { counter }) };
 }
 
-/** "C:\labels\Shelf.niimbot" → "Shelf". */
+/** "C:\labels\Shelf.labelpad" → "Shelf". */
 export function fileTitle(path: string): string {
   const name = path.split(/[\\/]/).pop() ?? path;
-  return name.replace(new RegExp(`\\.${FILE_EXTENSION}$`, "i"), "");
+  return name.replace(/\.(labelpad|niimbot)$/i, "");
 }
 
 function isObject(v: unknown): v is Record<string, unknown> {

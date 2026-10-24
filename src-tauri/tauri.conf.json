@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Niimbot Studio",
+  "productName": "LabelPad",
   "version": "../package.json",
-  "identifier": "com.derhally.niimbot-studio",
+  "identifier": "com.derhally.labelpad",
   "build": {
     "beforeDevCommand": "npm run dev:web",
     "devUrl": "http://localhost:5173",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Niimbot Studio",
+        "title": "LabelPad",
         "width": 1180,
         "height": 760,
         "minWidth": 900,

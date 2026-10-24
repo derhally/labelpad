@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    niimbot_studio_lib::run()
+    labelpad_lib::run()
 }

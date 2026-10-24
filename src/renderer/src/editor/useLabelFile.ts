@@ -5,7 +5,7 @@ import { ask, message, open, save } from "@tauri-apps/plugin-dialog";
 import { FILE_EXTENSION, FILE_FILTERS, fileTitle, parseLabel, serializeLabel } from "./labelFile";
 import type { LabelDoc } from "./types";
 
-const DRAFT_KEY = "niimbot-studio.draft";
+const DRAFT_KEY = "labelpad.draft";
 
 type Draft = { doc: LabelDoc; path: string | null; dirty: boolean };
 
@@ -38,7 +38,7 @@ export function useLabelFile(editor: Editor, opts: { initialPath: string | null;
   state.current = { doc, path, dirty };
 
   useEffect(() => {
-    const text = `${dirty ? "• " : ""}${title} — Niimbot Studio`;
+    const text = `${dirty ? "• " : ""}${title} — LabelPad`;
     document.title = text;
     getCurrentWindow().setTitle(text).catch(() => undefined);
   }, [title, dirty]);

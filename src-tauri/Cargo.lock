@@ -1910,6 +1910,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "labelpad"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "fontdb",
+ "log",
+ "printer",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tokio",
+ "ttf-parser",
+]
+
+[[package]]
 name = "libappindicator"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2122,37 +2139,6 @@ name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
-
-[[package]]
-name = "niimbot"
-version = "0.1.0"
-dependencies = [
- "btleplug",
- "futures",
- "log",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "niimbot-studio"
-version = "0.1.0"
-dependencies = [
- "env_logger",
- "fontdb",
- "log",
- "niimbot",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tokio",
- "ttf-parser",
-]
 
 [[package]]
 name = "num-conv"
@@ -2597,6 +2583,20 @@ name = "precomputed-hash"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
+
+[[package]]
+name = "printer"
+version = "0.1.0"
+dependencies = [
+ "btleplug",
+ "futures",
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "uuid",
+]
 
 [[package]]
 name = "proc-macro-crate"

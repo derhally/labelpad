@@ -11,7 +11,7 @@
   }
 
   if (!document.querySelector("[data-asset]")) return;
-  fetch("https://api.github.com/repos/derhally/niimbot-studio/releases/latest")
+  fetch("https://api.github.com/repos/derhally/labelpad/releases/latest")
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (release) {
       if (!release || !release.assets) return;

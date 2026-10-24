@@ -229,7 +229,7 @@ export function App() {
           <span className="logo">
             <Printer size={18} />
           </span>
-          Niimbot Studio
+          LabelPad
           <span className="doc-title" title={file.path ?? undefined}>
             {file.title}
             {file.dirty && <span className="dirty" aria-label="Unsaved changes" />}

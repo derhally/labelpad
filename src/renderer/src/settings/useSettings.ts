@@ -16,7 +16,7 @@ export type Settings = {
   rollSizes: Record<string, { widthMm: number; lengthMm: number }>;
 };
 
-const KEY = "niimbot-studio.settings";
+const KEY = "labelpad.settings";
 
 const DEFAULTS: Settings = {
   theme: "system",

@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Niimbot Studio Guide</title>
+  <title>LabelPad Guide</title>
   <meta name="description" content="A modern, free desktop app for designing and printing labels on the Niimbot D11 Bluetooth label printer. Windows, macOS and Linux.">
-  <meta property="og:title" content="Niimbot Studio">
+  <meta property="og:title" content="LabelPad">
   <meta property="og:description" content="Design and print labels on your Niimbot D11 from Windows, macOS and Linux.">
   <meta property="og:image" content="screenshots/editor-light.png">
   <link rel="icon" href="assets/icon.png">
@@ -17,12 +17,12 @@
 <body>
   <header class="top">
     <div class="wrap">
-      <a class="brand" href="./"><img src="assets/icon.png" alt="">Niimbot Studio</a>
+      <a class="brand" href="./"><img src="assets/icon.png" alt="">LabelPad</a>
       <nav>
         <a class="hide-sm" href="./#features">Features</a>
         <a href="guide.html" aria-current="page">Guide</a>
         <a href="./#download">Download</a>
-        <a class="gh" href="https://github.com/derhally/niimbot-studio" aria-label="GitHub">
+        <a class="gh" href="https://github.com/derhally/labelpad" aria-label="GitHub">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.7 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
           <span class="hide-sm">GitHub</span>
         </a>
@@ -54,12 +54,12 @@
       <p class="lead">Everything you need to go from a fresh install to a drawer full of labels.</p>
 
       <h2 id="install">Install</h2>
-      <p>Download the installer for your computer from the <a href="./#download">download section</a> or the <a href="https://github.com/derhally/niimbot-studio/releases/latest">latest release on GitHub</a>.</p>
+      <p>Download the installer for your computer from the <a href="./#download">download section</a> or the <a href="https://github.com/derhally/labelpad/releases/latest">latest release on GitHub</a>.</p>
       <h3>Windows</h3>
       <p>Run the <code>.exe</code> installer. The app isn't code-signed yet, so Windows SmartScreen may say <em>"Windows protected your PC"</em>. Click <strong>More info</strong>, then <strong>Run anyway</strong>. Use the <code>.msi</code> if you deploy software with Group Policy or Intune.</p>
       <h3>macOS</h3>
-      <p>Open the <code>.dmg</code> for your Mac (Apple silicon for M1 and newer, Intel for older Macs) and drag Niimbot Studio into Applications. Because the app isn't notarized yet, macOS blocks the first launch. Open <strong>System Settings → Privacy &amp; Security</strong> and click <strong>Open Anyway</strong>. If macOS says the app "is damaged", run this once in Terminal:</p>
-      <pre><code>xattr -cr "/Applications/Niimbot Studio.app"</code></pre>
+      <p>Open the <code>.dmg</code> for your Mac (Apple silicon for M1 and newer, Intel for older Macs) and drag LabelPad into Applications. Because the app isn't notarized yet, macOS blocks the first launch. Open <strong>System Settings → Privacy &amp; Security</strong> and click <strong>Open Anyway</strong>. If macOS says the app "is damaged", run this once in Terminal:</p>
+      <pre><code>xattr -cr "/Applications/LabelPad.app"</code></pre>
       <p>The first time you connect, macOS asks for permission to use Bluetooth. Allow it.</p>
       <h3>Linux</h3>
       <p>Use the <code>.AppImage</code> on any distribution (make it executable with <code>chmod +x</code>), or install the <code>.deb</code> or <code>.rpm</code>. Bluetooth goes through BlueZ, so the Bluetooth service must be running and your user needs access to it, usually by being in the <code>bluetooth</code> group.</p>
@@ -128,7 +128,7 @@
       <h2 id="templates">Templates and files</h2>
       <p><strong>New</strong> (<kbd>Ctrl</kbd>+<kbd>N</kbd>) opens the template gallery: a blank label, the built-in templates, and any label you saved with <strong>Save as template</strong>.</p>
       <img class="shot" src="screenshots/templates.png" alt="The template gallery" loading="lazy">
-      <p>Labels save as <code>.niimbot</code> files that you can keep, share and open again. The label you were working on reopens when you start the app, even if you never saved it. You can turn that off in Settings.</p>
+      <p>Labels save as <code>.labelpad</code> files (older <code>.niimbot</code> files still open) that you can keep, share and open again. The label you were working on reopens when you start the app, even if you never saved it. You can turn that off in Settings.</p>
 
       <h2 id="printing">Printing and label rolls</h2>
       <p>Choose a <strong>darkness</strong> from 1 to 3 and the number of <strong>copies</strong>, then click <strong>Print</strong> or press <kbd>Ctrl</kbd>+<kbd>P</kbd>. If labels come out faint, raise the darkness; if fine detail bleeds together, lower it.</p>
@@ -164,12 +164,12 @@
       <h3>The print is shifted or cut off</h3>
       <p>Check that the label size in the editor matches the roll you loaded. The roll panel warns you when they differ.</p>
       <h3>Still stuck?</h3>
-      <p><a href="https://github.com/derhally/niimbot-studio/issues/new">Open an issue on GitHub</a> with your printer model, your operating system, and what happened.</p>
+      <p><a href="https://github.com/derhally/labelpad/issues/new">Open an issue on GitHub</a> with your printer model, your operating system, and what happened.</p>
 
       <h2 id="source">Build from source</h2>
       <p>You need Node.js 22 or newer, <a href="https://rustup.rs">Rust</a> (stable), and the <a href="https://tauri.app/start/prerequisites/">Tauri prerequisites</a> for your system. On Linux that includes <code>libwebkit2gtk-4.1-dev</code> and <code>libdbus-1-dev</code>.</p>
-      <pre><code>git clone https://github.com/derhally/niimbot-studio
-cd niimbot-studio
+      <pre><code>git clone https://github.com/derhally/labelpad
+cd labelpad
 npm install
 npm run dev      # run with hot reload
 npm run build    # build an installer for this system</code></pre>
@@ -181,8 +181,8 @@ npm run build    # build an installer for this system</code></pre>
 
   <footer>
     <div class="wrap">
-      <span>Niimbot Studio is an independent project, not affiliated with Niimbot. MIT licensed.</span>
-      <span><a href="guide.html">Guide</a> · <a href="https://github.com/derhally/niimbot-studio">Source</a> · <a href="https://github.com/derhally/niimbot-studio/issues">Report a problem</a></span>
+      <span>LabelPad is an independent, MIT-licensed project. It is not affiliated with or endorsed by Niimbot; Niimbot and D11 are trademarks of their owner, used here only to say which printers work.</span>
+      <span><a href="guide.html">Guide</a> · <a href="https://github.com/derhally/labelpad">Source</a> · <a href="https://github.com/derhally/labelpad/issues">Report a problem</a></span>
     </div>
   </footer>
   <script src="assets/site.js"></script>
