@@ -7,6 +7,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Build installers for this existing release tag (e.g. v0.1.0) and attach them to it
+        required: false
 
 permissions:
   contents: write
@@ -24,7 +28,7 @@ jobs:
 
   build:
     needs: release-please
-    if: needs.release-please.outputs.created == 'true'
+    if: needs.release-please.outputs.created == 'true' || inputs.tag != ''
     strategy:
       fail-fast: false
       matrix:
@@ -41,7 +45,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ needs.release-please.outputs.tag }}
+          ref: ${{ inputs.tag || needs.release-please.outputs.tag }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
@@ -62,7 +66,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ needs.release-please.outputs.tag }}
-          releaseName: LabelPad ${{ needs.release-please.outputs.tag }}
+          tagName: ${{ inputs.tag || needs.release-please.outputs.tag }}
+          releaseName: LabelPad ${{ inputs.tag || needs.release-please.outputs.tag }}
           releaseDraft: false
           args: ${{ matrix.args }}
+          # package.json has no "tauri" script, which the action runs by default.
+          tauriScript: npx tauri
