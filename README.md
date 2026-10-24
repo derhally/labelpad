@@ -70,7 +70,7 @@ Bluetooth needs BlueZ, and your user must be allowed to use it (usually by being
 
 ## Releases
 
-Commit messages follow [Conventional Commits](https://www.conventionalcommits.org) (`feat:`, `fix:`, `docs:`…). [release-please](https://github.com/googleapis/release-please) keeps a release pull request open with the next version and changelog. Merging it tags the release, and the Release workflow builds installers for Windows (.exe, .msi), macOS (Apple silicon and Intel .dmg) and Linux (.AppImage, .deb, .rpm) and attaches them to it. The version lives in `package.json`; `tauri.conf.json` reads it from there and release-please updates `Cargo.toml`.
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org) (`feat:`, `fix:`, `docs:`…). [release-please](https://github.com/googleapis/release-please) keeps a release pull request open with the next version and changelog. Merging it tags the release, and the Release workflow builds installers for Windows (.exe, .msi), macOS (Apple silicon .dmg) and Linux (.AppImage, .deb, .rpm) and attaches them to it. The version lives in `package.json`; `tauri.conf.json` reads it from there and release-please updates `Cargo.toml`.
 
 The website in `docs/` is plain HTML and deploys to GitHub Pages on every push to main. To refresh its screenshots, run the app's web UI (`npm run dev:web`) and capture at 1360×820.
 

@@ -58,7 +58,7 @@
       <h3>Windows</h3>
       <p>Run the <code>.exe</code> installer. The app isn't code-signed yet, so Windows SmartScreen may say <em>"Windows protected your PC"</em>. Click <strong>More info</strong>, then <strong>Run anyway</strong>. Use the <code>.msi</code> if you deploy software with Group Policy or Intune.</p>
       <h3>macOS</h3>
-      <p>Open the <code>.dmg</code> for your Mac (Apple silicon for M1 and newer, Intel for older Macs) and drag LabelPad into Applications. Because the app isn't notarized yet, macOS blocks the first launch. Open <strong>System Settings → Privacy &amp; Security</strong> and click <strong>Open Anyway</strong>. If macOS says the app "is damaged", run this once in Terminal:</p>
+      <p>Open the <code>.dmg</code> and drag LabelPad into Applications. Because the app isn't notarized yet, macOS blocks the first launch. Open <strong>System Settings → Privacy &amp; Security</strong> and click <strong>Open Anyway</strong>. If macOS says the app "is damaged", run this once in Terminal:</p>
       <pre><code>xattr -cr "/Applications/LabelPad.app"</code></pre>
       <p>The first time you connect, macOS asks for permission to use Bluetooth. Allow it.</p>
       <h3>Linux</h3>
