@@ -2,6 +2,10 @@
 
 A modern desktop app for designing and printing labels on the **Niimbot D11** Bluetooth label printer. Runs on Windows, macOS and Linux.
 
+**[Website and guide](https://derhally.github.io/niimbot-studio/)** · **[Download](https://github.com/derhally/niimbot-studio/releases/latest)**
+
+![Niimbot Studio](docs/screenshots/editor-light.png)
+
 Built with [Tauri 2](https://tauri.app): a React + TypeScript label editor in the system webview, and a Rust backend that talks to the printer over Bluetooth LE ([btleplug](https://github.com/deviceplug/btleplug)). The Niimbot protocol in `src-tauri/niimbot` is a Rust port of [niimbluelib](https://github.com/MultiMote/niimbluelib), tested byte for byte against it.
 
 ## Getting started
@@ -64,9 +68,15 @@ Bluetooth needs BlueZ, and your user must be allowed to use it (usually by being
 | `npm test` | Run the Rust protocol tests |
 | `npm run typecheck` | Type-check the UI |
 
+## Releases
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org) (`feat:`, `fix:`, `docs:`…). [release-please](https://github.com/googleapis/release-please) keeps a release pull request open with the next version and changelog. Merging it tags the release, and the Release workflow builds installers for Windows (.exe, .msi), macOS (Apple silicon and Intel .dmg) and Linux (.AppImage, .deb, .rpm) and attaches them to it. The version lives in `package.json`; `tauri.conf.json` reads it from there and release-please updates `Cargo.toml`.
+
+The website in `docs/` is plain HTML and deploys to GitHub Pages on every push to main. To refresh its screenshots, run the app's web UI (`npm run dev:web`) and capture at 1360×820.
+
 ## Roadmap
 
 1. Connect over Bluetooth and print a test label
 2. Label editor: text, images, barcodes, QR codes and icons
 3. Save and open labels, templates, date/time, settings, light and dark themes
-4. Installers and CI for Windows, macOS and Linux
+4. Installers, automatic releases and the website
