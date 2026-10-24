@@ -19,6 +19,7 @@ import { importImage, pickImageFile } from "./editor/importImage";
 import { renderLabel, type RenderIssues } from "./editor/render";
 import { newId, type ElementType, type LabelElement } from "./editor/types";
 import { useDocument } from "./editor/useDocument";
+import { DEFAULT_COUNTER, hasCounter } from "./editor/variables";
 import { loadDraft, useLabelFile } from "./editor/useLabelFile";
 import { loadSettings, useSettings } from "./settings/useSettings";
 import type { LabelDoc } from "./editor/types";
@@ -100,13 +101,32 @@ export function App() {
     printer.stopScan();
   };
 
-  // Render again at print time so dates and times are current.
+  const numbered = hasCounter(doc);
+  const counter = doc.counter ?? DEFAULT_COUNTER;
+
+  // Render again at print time so dates and times are current. Numbered
+  // labels render once per number and print as separate pages.
   const print = useCallback(async () => {
     if (status !== "connected") return;
-    const canvas = document.createElement("canvas");
-    await renderLabel(canvas, dots.width, dots.height, doc.elements, new Date());
-    printer.print(canvas, { density, copies }).catch(() => undefined);
-  }, [printer, status, density, copies, dots.width, dots.height, doc.elements]);
+    const now = new Date();
+    const render = async (count: number) => {
+      const canvas = document.createElement("canvas");
+      await renderLabel(canvas, dots.width, dots.height, doc.elements, now, { count });
+      return canvas;
+    };
+    try {
+      if (numbered) {
+        const pages = await Promise.all(Array.from({ length: copies }, (_, i) => render(counter.start + i * counter.step)));
+        await printer.print(pages, { density, copies: 1 });
+        // The next print carries on from here.
+        editor.setCounter({ ...counter, start: counter.start + copies * counter.step });
+      } else {
+        await printer.print([await render(counter.start)], { density, copies });
+      }
+    } catch {
+      // The print panel shows the error.
+    }
+  }, [printer, editor, status, density, copies, dots.width, dots.height, doc.elements, numbered, counter]);
 
   const clock = useMinuteClock(doc.elements.some((e) => e.type === "datetime"));
 
@@ -268,6 +288,7 @@ export function App() {
           onEditText={() => document.getElementById("inspector-text")?.focus()}
           onRendered={onRendered}
           clock={clock}
+          count={counter.start}
         />
 
         <aside className="panel">
@@ -307,7 +328,9 @@ export function App() {
               }}
             />
           )}
-          <PrintPanel printer={printer} density={density} copies={copies} onDensity={setDensity} onCopies={setCopies} onPrint={print} onConnect={connect} />
+          <PrintPanel
+            numbering={numbered ? { ...counter, onChange: editor.setCounter } : undefined}
+            printer={printer} density={density} copies={copies} onDensity={setDensity} onCopies={setCopies} onPrint={print} onConnect={connect} />
         </aside>
       </main>
 

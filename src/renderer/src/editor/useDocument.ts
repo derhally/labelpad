@@ -45,6 +45,7 @@ export function useDocument(initial: LabelDoc) {
   const actions = useMemo(
     () => ({
       setSize: (size: LabelDoc["size"]) => apply((d) => ({ ...d, size })),
+      setCounter: (counter: NonNullable<LabelDoc["counter"]>) => apply((d) => ({ ...d, counter })),
       add: (el: LabelElement) => apply((d) => ({ ...d, elements: [...d.elements, el] })),
       update: (id: string, patch: Partial<LabelElement>, opts?: { transient?: boolean }) =>
         apply(

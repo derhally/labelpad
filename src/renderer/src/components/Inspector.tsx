@@ -80,6 +80,7 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
           <Field label="Text">
             <textarea id="inspector-text" rows={3} value={el.text} {...typing} onChange={(e) => type({ text: e.target.value })} />
           </Field>
+          <CounterHint onInsert={() => onChange({ text: `${el.text}{count}` })} />
           <TextStyleFields el={el} previewText={el.text} onChange={onChange} onCheckpoint={onCheckpoint} />
         </>
       )}
@@ -182,6 +183,7 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
           <Field label="Value">
             <input type="text" value={el.value} {...typing} onChange={(e) => type({ value: e.target.value })} />
           </Field>
+          <CounterHint onInsert={() => onChange({ value: `${el.value}{count}` })} />
           <Field label="Format">
             <select value={el.format} onChange={(e) => onChange({ format: e.target.value as typeof el.format })}>
               {BARCODE_FORMATS.map((f) => (
@@ -202,6 +204,7 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
           <Field label="Text or link">
             <textarea rows={3} value={el.value} {...typing} onChange={(e) => type({ value: e.target.value })} />
           </Field>
+          <CounterHint onInsert={() => onChange({ value: `${el.value}{count}` })} />
           <Field label="Error correction">
             <Segmented
               value={el.errorCorrection}
@@ -341,5 +344,17 @@ function TextStyleFields({ el, previewText, onChange, onCheckpoint }: { el: Text
         White on black
       </Toggle>
     </>
+  );
+}
+
+/** Explains {count} and adds it to the end of the field. */
+function CounterHint({ onInsert }: { onInsert: () => void }) {
+  return (
+    <p className="muted hint counter-hint">
+      <button type="button" className="link-button" onClick={onInsert}>
+        + Number
+      </button>{" "}
+      adds <code>{"{count}"}</code>, which counts up on each label you print. <code>{"{count:3}"}</code> pads it to 001.
+    </p>
   );
 }

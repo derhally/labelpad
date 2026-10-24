@@ -42,7 +42,11 @@ export function parseLabel(text: string): LabelDoc {
     return [{ ...el, id: typeof raw.id === "string" && raw.id ? raw.id : newId() } as LabelElement];
   });
 
-  return { version: 1, size: { widthMm, lengthMm }, elements };
+  const c = isObject(data.counter) ? data.counter : null;
+  const counter =
+    c && Number.isInteger(c.start) && Number.isInteger(c.step) ? { start: c.start as number, step: c.step as number } : undefined;
+
+  return { version: 1, size: { widthMm, lengthMm }, elements, ...(counter && { counter }) };
 }
 
 /** "C:\labels\Shelf.niimbot" → "Shelf". */

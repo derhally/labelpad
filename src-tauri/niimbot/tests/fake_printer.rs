@@ -15,6 +15,8 @@ struct FakeD11 {
     reader: Mutex<PacketReader>,
     sent: Arc<Mutex<Vec<u8>>>,
     copies: Mutex<u16>,
+    /// Labels printed so far in this job; page-index packets count across pages.
+    printed: Mutex<u16>,
 }
 
 impl FakeD11 {
@@ -38,7 +40,6 @@ impl FakeD11 {
             req::HEARTBEAT => self.reply(resp::HEARTBEAT_ADVANCED1, &[0, 0, 0, 0, 0, 0, 0, 0, 1, 3]),
             req::SET_DENSITY => self.reply(resp::SET_DENSITY, &[1]),
             req::SET_LABEL_TYPE => self.reply(resp::SET_LABEL_TYPE, &[1]),
-            req::PRINT_START => self.reply(resp::PRINT_START, &[1]),
             req::PRINT_CLEAR => self.reply(resp::PRINT_CLEAR, &[1]),
             req::PAGE_START => self.reply(resp::PAGE_START, &[1]),
             req::SET_PAGE_SIZE => self.reply(resp::SET_PAGE_SIZE, &[1]),
@@ -48,9 +49,15 @@ impl FakeD11 {
             }
             req::PAGE_END => {
                 self.reply(resp::PAGE_END, &[1]);
-                for page in 1..=*self.copies.lock().unwrap() {
-                    self.reply(resp::PRINTER_PAGE_INDEX, &page.to_be_bytes());
+                let mut printed = self.printed.lock().unwrap();
+                for _ in 0..*self.copies.lock().unwrap() {
+                    *printed += 1;
+                    self.reply(resp::PRINTER_PAGE_INDEX, &printed.to_be_bytes());
                 }
+            }
+            req::PRINT_START => {
+                *self.printed.lock().unwrap() = 0;
+                self.reply(resp::PRINT_START, &[1]);
             }
             req::PRINT_END => self.reply(resp::PRINT_END, &[1]),
             req::RFID_INFO => self.reply(resp::RFID_INFO, &[0]),
@@ -76,12 +83,60 @@ impl Transport for FakeTransport {
     }
 }
 
-#[tokio::test]
-async fn connects_and_prints_two_copies_on_a_d11() {
+fn fake_d11() -> (Client, Arc<Mutex<Vec<u8>>>) {
     let (tx, rx) = mpsc::unbounded_channel();
     let sent = Arc::new(Mutex::new(Vec::new()));
-    let printer = Arc::new(FakeD11 { to_client: tx, reader: Mutex::new(PacketReader::default()), sent: sent.clone(), copies: Mutex::new(1) });
-    let client = Client::new(FakeTransport(printer), rx);
+    let printer = Arc::new(FakeD11 {
+        to_client: tx,
+        reader: Mutex::new(PacketReader::default()),
+        sent: sent.clone(),
+        copies: Mutex::new(1),
+        printed: Mutex::new(0),
+    });
+    (Client::new(FakeTransport(printer), rx), sent)
+}
+
+/// A 40 × 12 mm label with a black bar `n` dots wide, so each page differs.
+fn bar_label(n: u32) -> Bitmap {
+    let (w, h) = (320u32, 96u32);
+    let mut bits = vec![0u8; (w * h / 8) as usize];
+    for y in 0..h {
+        for x in 0..n {
+            let i = (y * w + x) as usize;
+            bits[i / 8] |= 0x80 >> (i % 8);
+        }
+    }
+    Bitmap::from_packed(w, h, &bits)
+}
+
+#[tokio::test]
+async fn prints_numbered_labels_as_separate_pages() {
+    let (client, sent) = fake_d11();
+    client.handshake().await.unwrap();
+    let mut events = client.events();
+    sent.lock().unwrap().clear();
+
+    let pages = [bar_label(8), bar_label(16), bar_label(24)];
+    client.print_pages(&pages, PrintOptions { copies: 1, density: 2, ..Default::default() }).await.unwrap();
+
+    let cmds = sent.lock().unwrap().clone();
+    assert_eq!(cmds.iter().filter(|c| **c == req::PRINT_START).count(), 1, "one job");
+    assert_eq!(cmds.iter().filter(|c| **c == req::PAGE_START).count(), 3, "one page per label");
+    assert_eq!(cmds.iter().filter(|c| **c == req::PRINT_END).count(), 1);
+
+    let mut last_page = 0;
+    while let Ok(e) = events.try_recv() {
+        if let niimbot::ClientEvent::PrintProgress { page, pages_total, sending: false, .. } = e {
+            assert_eq!(pages_total, 3);
+            last_page = page;
+        }
+    }
+    assert_eq!(last_page, 3);
+}
+
+#[tokio::test]
+async fn connects_and_prints_two_copies_on_a_d11() {
+    let (client, sent) = fake_d11();
 
     let info = client.handshake().await.unwrap();
     assert_eq!(info.model.unwrap().model, "D11");

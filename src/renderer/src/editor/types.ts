@@ -6,6 +6,8 @@ export type LabelDoc = {
   version: 1;
   size: { widthMm: number; lengthMm: number };
   elements: LabelElement[];
+  /** Numbering for {count}: the next label's number and how much it goes up by. */
+  counter?: { start: number; step: number };
 };
 
 export type ElementBase = {

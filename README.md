@@ -33,6 +33,7 @@ Add text, dates, images, barcodes, QR codes, icons and shapes from the left tool
 - **Files**: labels save as `.niimbot` files (JSON). The label you were working on reopens when the app starts; turn that off in Settings.
 - **Templates**: New (Ctrl+N) offers a blank label, built-in templates, and any label you saved with "Save as template". Templates live in the app's data folder.
 - **Align and distribute**: with several items selected, line up their edges or centers with each other or with the label, or space them evenly. A single item can be aligned to the label from its panel.
+- **Numbered labels**: put `{count}` in text, a barcode or a QR code (`{count:3}` pads to 001). Printing 3 copies gives 1, 2, 3; the print panel sets the start number and step, and the next print carries on. The counter is saved with the label.
 - **Label rolls**: genuine Niimbot rolls carry an RFID tag. When connected, the app shows how many labels are left and uses the roll's label type. The tag doesn't include the size, so the first time a roll type is loaded the app asks for its size and remembers it; after that it offers to switch your label to that size.
 - **Settings** (gear icon): light, dark or system theme. Darkness, copies, label size and the last printer are remembered.
 

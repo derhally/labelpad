@@ -13,6 +13,7 @@ import type {
   TextStyle,
 } from "./types";
 import { dateTimeText } from "./dateFormat";
+import { substitute, type Variables } from "./variables";
 
 /** Problems found while rendering, keyed by element id (e.g. an invalid EAN-13 value). */
 export type RenderIssues = Record<string, string>;
@@ -30,13 +31,15 @@ export async function renderLabel(
   elements: LabelElement[],
   /** The time date/time elements show. */
   now: Date = new Date(),
+  /** Values for placeholders such as {count}. */
+  vars: Variables = { count: 1 },
 ): Promise<RenderIssues> {
   const issues: RenderIssues = {};
   // Render each element first; images and icons load asynchronously.
   const layers = await Promise.all(
     elements.map(async (el) => {
       try {
-        return await renderElement(el, now, (msg) => (issues[el.id] = msg));
+        return await renderElement(withVariables(el, vars), now, (msg) => (issues[el.id] = msg));
       } catch (e) {
         issues[el.id] = e instanceof Error ? e.message : String(e);
         return placeholder(el);
@@ -66,6 +69,21 @@ export async function renderLabel(
   target.height = height;
   target.getContext("2d")!.drawImage(out, 0, 0);
   return issues;
+}
+
+/** The element with its placeholders filled in. */
+function withVariables(el: LabelElement, vars: Variables): LabelElement {
+  switch (el.type) {
+    case "text":
+      return { ...el, text: substitute(el.text, vars) };
+    case "datetime":
+      return { ...el, prefix: substitute(el.prefix, vars) };
+    case "barcode":
+    case "qr":
+      return { ...el, value: substitute(el.value, vars) };
+    default:
+      return el;
+  }
 }
 
 async function renderElement(el: LabelElement, now: Date, warn: (message: string) => void): Promise<Layer | null> {

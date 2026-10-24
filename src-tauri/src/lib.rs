@@ -91,18 +91,19 @@ async fn printer_disconnect(printer: State<'_, Printer>) -> Result<(), String> {
     Ok(())
 }
 
-/// Print a 1-bit label. `bits` is the canvas packed MSB-first, row-major, 1 = black.
+/// Print 1-bit labels, `copies` of each page. Each page is the canvas packed
+/// MSB-first, row-major, 1 = black. Numbered labels send one page per number.
 #[tauri::command]
-async fn printer_print(printer: State<'_, Printer>, width: u32, height: u32, bits: Vec<u8>, density: u8, copies: u16) -> Result<(), String> {
-    if bits.len() < (width as usize * height as usize).div_ceil(8) {
+async fn printer_print(printer: State<'_, Printer>, width: u32, height: u32, pages: Vec<Vec<u8>>, density: u8, copies: u16) -> Result<(), String> {
+    if pages.is_empty() || pages.iter().any(|bits| bits.len() < (width as usize * height as usize).div_ceil(8)) {
         return Err("Label image is incomplete".into());
     }
     let client = printer.client().await?;
-    let bitmap = Bitmap::from_packed(width, height, &bits);
+    let bitmaps: Vec<Bitmap> = pages.iter().map(|bits| Bitmap::from_packed(width, height, bits)).collect();
     // Use the roll's own label type (gaps, black marks, continuous...) when its tag says.
     let label_type = client.info().rfid.filter(|r| r.tag_present && (1..=11).contains(&r.consumables_type)).map_or(1, |r| r.consumables_type);
     client
-        .print(&bitmap, PrintOptions { density, copies: copies.max(1), label_type, ..Default::default() })
+        .print_pages(&bitmaps, PrintOptions { density, copies: copies.max(1), label_type, ..Default::default() })
         .await
         .map_err(|e| e.to_string())
 }

@@ -160,12 +160,14 @@ export function usePrinter() {
     await invoke("printer_disconnect").catch(() => undefined);
   }, [reset]);
 
-  const print = useCallback(async (canvas: HTMLCanvasElement, { density, copies }: PrintOptions) => {
+  /** Print `copies` of each canvas; numbered labels pass one canvas per number. */
+  const print = useCallback(async (canvases: HTMLCanvasElement[], { density, copies }: PrintOptions) => {
     setError(null);
     setStatus("printing");
-    setProgress({ page: 1, pagesTotal: copies, percent: 0, sending: true });
+    setProgress({ page: 1, pagesTotal: copies * canvases.length, percent: 0, sending: true });
     try {
-      await invoke("printer_print", { width: canvas.width, height: canvas.height, bits: packBits(canvas), density, copies });
+      const { width, height } = canvases[0];
+      await invoke("printer_print", { width, height, pages: canvases.map(packBits), density, copies });
     } catch (e) {
       setError(String(e));
       throw e;

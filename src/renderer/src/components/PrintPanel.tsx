@@ -1,6 +1,6 @@
 import { AlertTriangle, Minus, Plus, Printer, X } from "lucide-react";
 import type { usePrinter } from "../printer/usePrinter";
-import { Segmented } from "./fields";
+import { Field, NumberInput, Segmented } from "./fields";
 
 type Props = {
   printer: ReturnType<typeof usePrinter>;
@@ -10,6 +10,8 @@ type Props = {
   onCopies: (c: number) => void;
   onPrint: () => void;
   onConnect: () => void;
+  /** Shown when the label uses {count}. */
+  numbering?: { start: number; step: number; onChange: (c: { start: number; step: number }) => void };
 };
 
 /** Sending fills the bar once; then it tracks finished labels. */
@@ -18,7 +20,7 @@ function progressPercent(p: { page: number; pagesTotal: number; percent: number;
   return Math.min(100, ((Math.max(0, p.page - 1) + p.percent / 100) / Math.max(1, p.pagesTotal)) * 100);
 }
 
-export function PrintPanel({ printer, density, copies, onDensity, onCopies, onPrint, onConnect }: Props) {
+export function PrintPanel({ printer, density, copies, onDensity, onCopies, onPrint, onConnect, numbering }: Props) {
   const { status, details, heartbeat } = printer;
   const connected = status === "connected" || status === "printing";
   const warning = heartbeat?.lidClosed === false ? "The lid is open." : heartbeat?.paperInserted === false ? "No labels loaded." : null;
@@ -44,6 +46,25 @@ export function PrintPanel({ printer, density, copies, onDensity, onCopies, onPr
           </div>
         </div>
       </div>
+
+      {numbering && (
+        <div className="numbering">
+          <div className="grid-2">
+            <Field label="Start at">
+              <NumberInput step={1} value={numbering.start} onChange={(start) => numbering.onChange({ start: Math.round(start), step: numbering.step })} />
+            </Field>
+            <Field label="Count by">
+              <NumberInput step={1} value={numbering.step} onChange={(step) => numbering.onChange({ start: numbering.start, step: Math.round(step) || 1 })} />
+            </Field>
+          </div>
+          <p className="muted hint">
+            {copies > 1
+              ? `Prints numbers ${numbering.start} to ${numbering.start + (copies - 1) * numbering.step}.`
+              : `Prints number ${numbering.start}.`}{" "}
+            The next print carries on from there.
+          </p>
+        </div>
+      )}
 
       {warning && connected && (
         <div className="notice warn">

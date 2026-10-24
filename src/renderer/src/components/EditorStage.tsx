@@ -18,6 +18,8 @@ type Props = {
   onRendered: (canvas: HTMLCanvasElement, issues: RenderIssues) => void;
   /** Changes each minute while the label shows the time, to redraw it. */
   clock: number;
+  /** The number {count} shows in the preview. */
+  count: number;
 };
 
 const MAX_ZOOM = 8;
@@ -30,7 +32,7 @@ const STAGE_PADDING = 96;
 /** A drag-to-select rectangle, in label dots. */
 type Marquee = { x0: number; y0: number; x1: number; y1: number; additive: boolean };
 
-export function EditorStage({ elements, width, height, selectedIds, onSelect, onChange, onChangeMany, onGestureStart, onEditText, onRendered, clock }: Props) {
+export function EditorStage({ elements, width, height, selectedIds, onSelect, onChange, onChangeMany, onGestureStart, onEditText, onRendered, clock, count }: Props) {
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -60,7 +62,7 @@ export function EditorStage({ elements, width, height, selectedIds, onSelect, on
   useEffect(() => {
     const token = ++renderToken.current;
     const offscreen = document.createElement("canvas");
-    renderLabel(offscreen, width, height, elements).then((issues) => {
+    renderLabel(offscreen, width, height, elements, new Date(), { count }).then((issues) => {
       if (token !== renderToken.current || !canvasRef.current) return;
       const canvas = canvasRef.current;
       canvas.width = width;
@@ -68,7 +70,7 @@ export function EditorStage({ elements, width, height, selectedIds, onSelect, on
       canvas.getContext("2d")!.drawImage(offscreen, 0, 0);
       onRendered(canvas, issues);
     });
-  }, [elements, width, height, onRendered, clock]);
+  }, [elements, width, height, onRendered, clock, count]);
 
   useLayoutEffect(() => {
     if (!gesturing.current) moveableRef.current?.updateRect();
