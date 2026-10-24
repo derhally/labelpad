@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 
 export type PrinterStatus = "disconnected" | "connecting" | "connected" | "printing";
 
-/** Mirrors `niimbot::PrinterInfo` from the Rust side. */
+/** Mirrors `printer::PrinterInfo` from the Rust side. */
 type RustPrinterInfo = {
   modelId?: number;
   model?: {
@@ -23,7 +23,7 @@ type RustPrinterInfo = {
   rfid?: RollInfo;
 };
 
-/** The label roll's RFID tag. Mirrors `niimbot::RfidInfo`. */
+/** The label roll's RFID tag. Mirrors `printer::RfidInfo`. */
 export type RollInfo = {
   tagPresent: boolean;
   uuid: string;
@@ -74,7 +74,7 @@ export const D11_DEFAULTS: PrinterDetails = {
 
 /**
  * Printer state for the UI. Bluetooth and the Niimbot protocol live in Rust
- * (src-tauri/niimbot); this hook calls its commands and listens for its events.
+ * (src-tauri/printer); this hook calls its commands and listens for its events.
  */
 export function usePrinter() {
   const [status, setStatus] = useState<PrinterStatus>("disconnected");

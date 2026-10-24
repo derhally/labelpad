@@ -5,9 +5,9 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use niimbot::commands::{req, resp};
-use niimbot::packet::{Packet, PacketReader};
-use niimbot::{Bitmap, Client, PrintOptions, Transport};
+use printer::commands::{req, resp};
+use printer::packet::{Packet, PacketReader};
+use printer::{Bitmap, Client, PrintOptions, Transport};
 use tokio::sync::mpsc;
 
 struct FakeD11 {
@@ -69,7 +69,7 @@ impl FakeD11 {
 struct FakeTransport(Arc<FakeD11>);
 
 impl Transport for FakeTransport {
-    fn write<'a>(&'a self, data: &'a [u8]) -> Pin<Box<dyn Future<Output = niimbot::Result<()>> + Send + 'a>> {
+    fn write<'a>(&'a self, data: &'a [u8]) -> Pin<Box<dyn Future<Output = printer::Result<()>> + Send + 'a>> {
         // The connect packet's leading 0x03 isn't part of the frame.
         let frame = if data.first() == Some(&3) { &data[1..] } else { data };
         let packets = self.0.reader.lock().unwrap().push(frame);
@@ -126,7 +126,7 @@ async fn prints_numbered_labels_as_separate_pages() {
 
     let mut last_page = 0;
     while let Ok(e) = events.try_recv() {
-        if let niimbot::ClientEvent::PrintProgress { page, pages_total, sending: false, .. } = e {
+        if let printer::ClientEvent::PrintProgress { page, pages_total, sending: false, .. } = e {
             assert_eq!(pages_total, 3);
             last_page = page;
         }
@@ -142,7 +142,7 @@ async fn connects_and_prints_two_copies_on_a_d11() {
     assert_eq!(info.model.unwrap().model, "D11");
     assert_eq!(info.battery_percents, Some(100));
     assert_eq!(info.software_version.as_deref(), Some("1.05/2.61"));
-    assert_eq!(info.print_task, Some(niimbot::PrintTaskName::D11V1));
+    assert_eq!(info.print_task, Some(printer::PrintTaskName::D11V1));
     assert_eq!(info.rfid.as_ref().map(|r| r.tag_present), Some(false));
 
     // A 40 × 12 mm label with a black frame.
@@ -170,7 +170,7 @@ async fn connects_and_prints_two_copies_on_a_d11() {
 
     let mut last_page = 0;
     while let Ok(e) = events.try_recv() {
-        if let niimbot::ClientEvent::PrintProgress { page, sending: false, .. } = e {
+        if let printer::ClientEvent::PrintProgress { page, sending: false, .. } = e {
             last_page = page;
         }
     }

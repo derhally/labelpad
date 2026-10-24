@@ -1,5 +1,5 @@
 [package]
-name = "niimbot"
+name = "printer"
 version = "0.1.0"
 edition = "2021"
 description = "Niimbot label printer protocol over Bluetooth LE, ported from niimbluelib"

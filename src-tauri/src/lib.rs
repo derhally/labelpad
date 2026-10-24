@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use niimbot::ble::{Bluetooth, FoundPrinter};
-use niimbot::{Bitmap, Client, ClientEvent, PrintOptions, PrinterInfo};
+use printer::ble::{Bluetooth, FoundPrinter};
+use printer::{Bitmap, Client, ClientEvent, PrintOptions, PrinterInfo};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::Mutex;
@@ -230,7 +230,7 @@ fn template_path(app: &AppHandle, id: &str) -> Result<std::path::PathBuf, String
     if id.is_empty() || id.contains(['/', '\\', ':']) || id.starts_with('.') {
         return Err("Invalid template name".into());
     }
-    Ok(templates_dir(app)?.join(format!("{id}.niimbot")))
+    Ok(templates_dir(app)?.join(format!("{id}.labelpad")))
 }
 
 #[tauri::command]
@@ -238,7 +238,8 @@ async fn templates_list(app: AppHandle) -> Result<Vec<Template>, String> {
     let mut out = Vec::new();
     for entry in std::fs::read_dir(templates_dir(&app)?).map_err(|e| e.to_string())?.flatten() {
         let path = entry.path();
-        if path.extension().is_some_and(|e| e == "niimbot") {
+        // .niimbot is what templates were saved as before the rename.
+        if path.extension().is_some_and(|e| e == "labelpad" || e == "niimbot") {
             if let (Some(id), Ok(contents)) = (path.file_stem().and_then(|s| s.to_str()), std::fs::read_to_string(&path)) {
                 out.push(Template { id: id.to_string(), contents });
             }
@@ -286,6 +287,6 @@ pub fn run() {
             template_delete
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Niimbot Studio");
+        .expect("error while running LabelPad");
 }
 

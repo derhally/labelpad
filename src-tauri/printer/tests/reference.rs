@@ -1,9 +1,9 @@
 //! Byte-for-byte checks against niimbluelib. Regenerate the fixtures with
-//! `node scripts/gen-niimbot.cjs` from the repo root.
+//! `node scripts/gen-protocol.cjs` from the repo root.
 
-use niimbot::encoder::{encode_image, Bitmap};
-use niimbot::packet::{Packet, PacketReader};
-use niimbot::{generator as gen, models, parser, PrintDirection, PrintTaskName};
+use printer::encoder::{encode_image, Bitmap};
+use printer::packet::{Packet, PacketReader};
+use printer::{generator as gen, models, parser, PrintDirection, PrintTaskName};
 use serde_json::Value;
 
 fn fixtures() -> Value {

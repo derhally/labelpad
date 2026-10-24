@@ -3,7 +3,7 @@
   "packages": {
     ".": {
       "release-type": "node",
-      "package-name": "niimbot-studio",
+      "package-name": "labelpad",
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true,
       "include-component-in-tag": false,
@@ -16,7 +16,7 @@
         {
           "type": "toml",
           "path": "src-tauri/Cargo.lock",
-          "jsonpath": "$.package[?(@.name.value==='niimbot-studio')].version"
+          "jsonpath": "$.package[?(@.name.value==='labelpad')].version"
         }
       ],
       "initial-version": "0.1.0"

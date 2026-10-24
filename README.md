@@ -1,12 +1,12 @@
-# Niimbot Studio
+# LabelPad
 
 A modern desktop app for designing and printing labels on the **Niimbot D11** Bluetooth label printer. Runs on Windows, macOS and Linux.
 
-**[Website and guide](https://derhally.github.io/niimbot-studio/)** · **[Download](https://github.com/derhally/niimbot-studio/releases/latest)**
+**[Website and guide](https://derhally.github.io/labelpad/)** · **[Download](https://github.com/derhally/labelpad/releases/latest)**
 
-![Niimbot Studio](docs/screenshots/editor-light.png)
+![LabelPad](docs/screenshots/editor-light.png)
 
-Built with [Tauri 2](https://tauri.app): a React + TypeScript label editor in the system webview, and a Rust backend that talks to the printer over Bluetooth LE ([btleplug](https://github.com/deviceplug/btleplug)). The Niimbot protocol in `src-tauri/niimbot` is a Rust port of [niimbluelib](https://github.com/MultiMote/niimbluelib), tested byte for byte against it.
+Built with [Tauri 2](https://tauri.app): a React + TypeScript label editor in the system webview, and a Rust backend that talks to the printer over Bluetooth LE ([btleplug](https://github.com/deviceplug/btleplug)). The Niimbot protocol in `src-tauri/printer` is a Rust port of [niimbluelib](https://github.com/MultiMote/niimbluelib), tested byte for byte against it.
 
 ## Getting started
 
@@ -25,8 +25,8 @@ Turn on the D11, click **Connect printer**, and pick it from the list. You don't
 | --- | --- |
 | `src/renderer` | React UI: the label editor and its 1-bit renderer |
 | `src-tauri/src` | Tauri app: commands the UI calls (`scan_start`, `printer_connect`, `printer_print`, …) |
-| `src-tauri/niimbot` | Printer protocol: packets, image encoding, print jobs and the Bluetooth transport |
-| `scripts/gen-niimbot.cjs` | Regenerates the printer model table and the reference test fixtures from niimbluelib |
+| `src-tauri/printer` | Printer protocol: packets, image encoding, print jobs and the Bluetooth transport |
+| `scripts/gen-protocol.cjs` | Regenerates the printer model table and the reference test fixtures from niimbluelib |
 
 ## Designing labels
 
@@ -34,7 +34,7 @@ Add text, dates, images, barcodes, QR codes, icons and shapes from the left tool
 
 - **Text** can use any font installed on your computer, aligned left, center or right and top, middle or bottom. "Browse" shows every font with your label's text, filtered by style (sans serif, serif, monospace, handwriting, display).
 - **Date** prints the date and/or time when the label is printed: date + time, date only, or time only. Dates use a format you pick (or your own pattern such as `DD/MM/YYYY`), and times are 12- or 24-hour. "Add days" makes use-by labels.
-- **Files**: labels save as `.niimbot` files (JSON). The label you were working on reopens when the app starts; turn that off in Settings.
+- **Files**: labels save as `.labelpad` files (JSON). The label you were working on reopens when the app starts; turn that off in Settings.
 - **Templates**: New (Ctrl+N) offers a blank label, built-in templates, and any label you saved with "Save as template". Templates live in the app's data folder.
 - **Align and distribute**: with several items selected, line up their edges or centers with each other or with the label, or space them evenly. A single item can be aligned to the label from its panel.
 - **Numbered labels**: put `{count}` in text, a barcode or a QR code (`{count:3}` pads to 001). Printing 3 copies gives 1, 2, 3; the print panel sets the start number and step, and the next print carries on. The counter is saved with the label.

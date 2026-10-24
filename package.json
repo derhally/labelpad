@@ -1,15 +1,15 @@
 {
-  "name": "niimbot-studio",
+  "name": "labelpad",
   "version": "0.1.0",
-  "description": "A modern desktop app for the Niimbot D11 label printer",
+  "description": "A modern label designer for Niimbot-compatible Bluetooth label printers",
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
     "dev:web": "vite",
     "build:web": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "cargo test --manifest-path src-tauri/Cargo.toml -p niimbot --no-default-features",
-    "gen:niimbot": "node scripts/gen-niimbot.cjs"
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml -p printer --no-default-features",
+    "gen:protocol": "node scripts/gen-protocol.cjs"
   },
   "author": "Zeid",
   "license": "MIT",
