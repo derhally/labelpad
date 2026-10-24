@@ -15,6 +15,19 @@ npm run dev
 
 Turn on the D11, click **Connect printer**, and pick it from the list. You don't need to pair it in your system's Bluetooth settings first.
 
+## Designing labels
+
+Add text, images, barcodes, QR codes, icons and shapes from the left toolbar, then drag, resize and rotate them on the label. Everything snaps to the label edges, its centre and other elements. The preview is the exact 1-bit image that's sent to the printer.
+
+| Shortcut | Action |
+| --- | --- |
+| Ctrl+Z / Ctrl+Shift+Z | Undo / redo |
+| Ctrl+D | Duplicate |
+| Delete | Remove |
+| Arrow keys | Nudge 1 dot (Shift: 1 mm) |
+| Ctrl+P | Print |
+| Esc | Deselect |
+
 ### Linux
 
 Bluetooth needs BlueZ, and your user must be allowed to use it (usually by being in the `bluetooth` group).
