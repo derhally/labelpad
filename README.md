@@ -26,9 +26,9 @@ Turn on the D11, click **Connect printer**, and pick it from the list. You don't
 
 ## Designing labels
 
-Add text, dates, images, barcodes, QR codes, icons and shapes from the left toolbar, then drag, resize and rotate them on the label. Everything snaps to the label edges, its centre and other elements. The preview is the exact 1-bit image that's sent to the printer.
+Add text, dates, images, barcodes, QR codes, icons and shapes from the left toolbar, then drag, resize and rotate them on the label. Everything snaps to the label edges, its center and other elements. The preview is the exact 1-bit image that's sent to the printer.
 
-- **Text** can use any font installed on your computer, aligned left, centre or right and top, middle or bottom. "Browse" shows every font with your label's text, filtered by style (sans serif, serif, monospace, handwriting, display).
+- **Text** can use any font installed on your computer, aligned left, center or right and top, middle or bottom. "Browse" shows every font with your label's text, filtered by style (sans serif, serif, monospace, handwriting, display).
 - **Date** prints the date and/or time when the label is printed: date + time, date only, or time only. Dates use a format you pick (or your own pattern such as `DD/MM/YYYY`), and times are 12- or 24-hour. "Add days" makes use-by labels.
 - **Files**: labels save as `.niimbot` files (JSON). The label you were working on reopens when the app starts; turn that off in Settings.
 - **Templates**: New (Ctrl+N) offers a blank label, built-in templates, and any label you saved with "Save as template". Templates live in the app's data folder.

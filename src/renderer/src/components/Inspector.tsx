@@ -8,6 +8,7 @@ import { BARCODE_FORMATS, type LabelElement, type TextStyle } from "../editor/ty
 import { useState } from "react";
 import { FontBrowser } from "./FontBrowser";
 import { FontPicker } from "./FontPicker";
+import { spell } from "../locale";
 import { DOTS_PER_MM } from "../printer/label";
 import { Field, NumberInput, Segmented, Toggle } from "./fields";
 import { TYPE_META } from "./Toolbar";
@@ -301,7 +302,7 @@ function TextStyleFields({ el, previewText, onChange, onCheckpoint }: { el: Text
           onChange={(align) => onChange({ align })}
           options={[
             { value: "left", label: <AlignLeft size={16} />, title: "Align left" },
-            { value: "center", label: <AlignCenter size={16} />, title: "Centre" },
+            { value: "center", label: <AlignCenter size={16} />, title: spell("Center") },
             { value: "right", label: <AlignRight size={16} />, title: "Align right" },
           ]}
         />
@@ -319,7 +320,7 @@ function TextStyleFields({ el, previewText, onChange, onCheckpoint }: { el: Text
         onChange={(valign) => onChange({ valign })}
         options={[
           { value: "top", label: <><AlignStartHorizontal size={16} /> Top</>, title: "Align to top" },
-          { value: "middle", label: <><AlignCenterHorizontal size={16} /> Middle</>, title: "Centre vertically" },
+          { value: "middle", label: <><AlignCenterHorizontal size={16} /> Middle</>, title: spell("Center vertically") },
           { value: "bottom", label: <><AlignEndHorizontal size={16} /> Bottom</>, title: "Align to bottom" },
         ]}
       />
