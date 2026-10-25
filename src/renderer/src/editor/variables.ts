@@ -1,3 +1,4 @@
+import { qrTexts } from "./qr";
 import type { LabelDoc, LabelElement } from "./types";
 
 /**
@@ -17,7 +18,7 @@ export function substitute(text: string, vars: Variables): string {
 }
 
 function usesCounter(el: LabelElement): boolean {
-  const texts = el.type === "text" ? [el.text] : el.type === "datetime" ? [el.prefix] : el.type === "barcode" || el.type === "qr" ? [el.value] : [];
+  const texts = el.type === "text" ? [el.text] : el.type === "datetime" ? [el.prefix] : el.type === "barcode" ? [el.value] : el.type === "qr" ? qrTexts(el) : [];
   return texts.some((t) => t.match(COUNT) !== null);
 }
 

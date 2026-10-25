@@ -1,7 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import JsBarcode from "jsbarcode";
-import QRCode from "qrcode";
 import { ICONS } from "./icons";
 import type {
   BarcodeElement,
@@ -13,6 +12,7 @@ import type {
   TextStyle,
 } from "./types";
 import { dateTimeText } from "./dateFormat";
+import { QR_FIELDS, QR_MIN_DOTS, qrFit } from "./qr";
 import { substitute, type Variables } from "./variables";
 
 /** Problems found while rendering, keyed by element id (e.g. an invalid EAN-13 value). */
@@ -79,8 +79,12 @@ function withVariables(el: LabelElement, vars: Variables): LabelElement {
     case "datetime":
       return { ...el, prefix: substitute(el.prefix, vars) };
     case "barcode":
-    case "qr":
       return { ...el, value: substitute(el.value, vars) };
+    case "qr": {
+      const out: Record<string, unknown> = { ...el };
+      for (const k of QR_FIELDS[el.qrType]) if (typeof el[k] === "string") out[k] = substitute(el[k], vars);
+      return out as QrElement;
+    }
     default:
       return el;
   }
@@ -99,7 +103,7 @@ async function renderElement(el: LabelElement, now: Date, warn: (message: string
     case "barcode":
       return renderBarcode(el, w, h, warn);
     case "qr":
-      return renderQr(el, w, h);
+      return renderQr(el, w, h, warn);
     case "icon":
       return renderIcon(el, w, h);
     case "shape":
@@ -282,13 +286,12 @@ function renderBarcode(el: BarcodeElement, w: number, h: number, warn: (message:
   return canvas;
 }
 
-function renderQr(el: QrElement, w: number, h: number): Layer {
-  if (!el.value) throw new Error("Enter some text or a link");
-  const qr = QRCode.create(el.value, { errorCorrectionLevel: el.errorCorrection });
-  const n = qr.modules.size;
-  const side = Math.min(w, h);
-  const scale = Math.floor(side / n);
+function renderQr(el: QrElement, w: number, h: number, warn: (message: string) => void): Layer {
+  const qr = qrFit(el, Math.min(w, h));
+  const n = qr.modules;
+  const scale = qr.dots;
   if (scale < 1) throw new Error("Too much data for this size. Make it bigger or shorten the text.");
+  if (scale < QR_MIN_DOTS) warn(`Each square is only ${scale} dot${scale === 1 ? "" : "s"} wide, so it may not scan. Make it bigger, use less data, or lower the error correction.`);
   const canvas = makeCanvas(w, h);
   const ctx = canvas.getContext("2d")!;
   const ox = Math.floor((w - n * scale) / 2);
@@ -298,7 +301,7 @@ function renderQr(el: QrElement, w: number, h: number): Layer {
   ctx.fillStyle = "#000";
   for (let y = 0; y < n; y++) {
     for (let x = 0; x < n; x++) {
-      if (qr.modules.get(y, x)) ctx.fillRect(ox + x * scale, oy + y * scale, scale, scale);
+      if (qr.code.get(y, x)) ctx.fillRect(ox + x * scale, oy + y * scale, scale, scale);
     }
   }
   return canvas;

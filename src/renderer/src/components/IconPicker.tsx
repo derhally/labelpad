@@ -1,14 +1,17 @@
 import { useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
-import { ICON_IDS, ICONS } from "../editor/icons";
+import { ICON_IDS, ICONS, POPULAR_IDS } from "../editor/icons";
+
+/** Rendering every match at once makes typing lag, so show this many and ask for a narrower search. */
+const MAX_SHOWN = 300;
 
 type Props = { open: boolean; onPick: (icon: string) => void; onClose: () => void };
 
 export function IconPicker({ open, onPick, onClose }: Props) {
   const [query, setQuery] = useState("");
   const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return q ? ICON_IDS.filter((id) => id.includes(q)) : ICON_IDS;
+    const q = query.trim().toLowerCase().replace(/s+/g, "-");
+    return q ? ICON_IDS.filter((id) => id.includes(q)) : POPULAR_IDS;
   }, [query]);
 
   if (!open) return null;
@@ -24,10 +27,10 @@ export function IconPicker({ open, onPick, onClose }: Props) {
         </header>
         <label className="search">
           <Search size={16} />
-          <input autoFocus placeholder="Search icons" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <input autoFocus placeholder={`Search all ${ICON_IDS.length.toLocaleString()} icons`} value={query} onChange={(e) => setQuery(e.target.value)} />
         </label>
         <div className="icon-grid">
-          {matches.map((id) => {
+          {matches.slice(0, MAX_SHOWN).map((id) => {
             const Icon = ICONS[id];
             return (
               <button key={id} className="icon-cell" title={id} onClick={() => onPick(id)}>
@@ -37,6 +40,7 @@ export function IconPicker({ open, onPick, onClose }: Props) {
             );
           })}
           {matches.length === 0 && <p className="muted empty">No icons match "{query}".</p>}
+          {matches.length > MAX_SHOWN && <p className="muted empty">{(matches.length - MAX_SHOWN).toLocaleString()} more. Type more of the name to narrow it down.</p>}
         </div>
       </div>
     </div>

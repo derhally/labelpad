@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import { icons as LUCIDE, type LucideIcon } from "lucide-react";
 import {
   AlertTriangle, Apple, Archive, Baby, Battery, Beer, Bike, Book, Bookmark, Box, Briefcase, Bug, Cable, Cake,
   Calendar, Camera, Car, Carrot, Cat, Check, ChefHat, Cherry, Circle, Clock, Cloud, Coffee, Cog, Cookie, Cpu, CreditCard,
@@ -13,9 +13,9 @@ import {
 
 /**
  * A curated set of icons that suit labels: storage, kitchen, workshop, office and warnings.
- * Keyed by a stable id that's stored in label files.
+ * Keyed by a stable id that's stored in label files. The picker shows these first.
  */
-export const ICONS: Record<string, LucideIcon> = {
+const POPULAR: Record<string, LucideIcon> = {
   "alert-triangle": AlertTriangle, apple: Apple, archive: Archive, baby: Baby, battery: Battery, beer: Beer, bike: Bike,
   book: Book, bookmark: Bookmark, box: Box, briefcase: Briefcase, bug: Bug, cable: Cable, cake: Cake, calendar: Calendar,
   camera: Camera, car: Car, carrot: Carrot, cat: Cat, check: Check, "chef-hat": ChefHat, cherry: Cherry, circle: Circle,
@@ -35,4 +35,16 @@ export const ICONS: Record<string, LucideIcon> = {
   wand: Wand2, wheat: Wheat, wifi: Wifi, wine: Wine, wrench: Wrench, x: X, zap: Zap,
 };
 
+/** Every Lucide icon, by its kebab-case name ("ChevronUp" is "chevron-up"), after the popular ones. */
+export const ICONS: Record<string, LucideIcon> = { ...POPULAR };
+for (const [name, Icon] of Object.entries(LUCIDE)) {
+  const id = name
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
+    .replace(/([a-zA-Z])([0-9])/g, "$1-$2")
+    .toLowerCase();
+  ICONS[id] ??= Icon;
+}
+
+export const POPULAR_IDS = Object.keys(POPULAR);
 export const ICON_IDS = Object.keys(ICONS);

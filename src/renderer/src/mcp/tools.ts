@@ -2,11 +2,12 @@ import { invoke } from "@tauri-apps/api/core";
 import type { EditorHandle, TabMeta } from "../components/LabelEditor";
 import { align, bounds, type AlignEdge, type Box } from "../editor/arrange";
 import { makeElement } from "../editor/defaults";
-import { ICON_IDS } from "../editor/icons";
+import { ICON_IDS, POPULAR_IDS } from "../editor/icons";
 import { importImage } from "../editor/importImage";
 import { renderLabel } from "../editor/render";
 import { builtInTemplates, fromTemplate, userTemplates } from "../editor/templates";
-import { BARCODE_FORMATS, keepsAspect, type ElementType, type LabelDoc, type LabelElement } from "../editor/types";
+import { QR_FIELDS, qrFit, qrPayload } from "../editor/qr";
+import { BARCODE_FORMATS, keepsAspect, QR_TYPES, WIFI_SECURITY, type ElementType, type LabelDoc, type LabelElement, type QrElement } from "../editor/types";
 import { DEFAULT_COUNTER } from "../editor/variables";
 import { canvasSize, convertDoc, printerForModel, PRINTERS, profileFor, type PrinterId } from "../printer/label";
 import type { usePrinter } from "../printer/usePrinter";
@@ -97,11 +98,25 @@ function lengthKeys(type: ElementType): string[] {
   return keys;
 }
 
+const QR_KEPT = ["id", "type", "x", "y", "width", "height", "rotation", "qrType", "errorCorrection"];
+
 function elementOut(el: LabelElement, dotsPerMm: number): Record<string, unknown> {
   const out: Record<string, unknown> = { ...el };
   for (const k of lengthKeys(el.type)) out[k] = round((el as unknown as Record<string, number>)[k] / dotsPerMm);
   // Image data is large and of no use to an agent.
   if (el.type === "image") out.src = el.src ? `(embedded image, ${Math.round(el.src.length / 1365)} KB)` : "(none)";
+  if (el.type === "qr") {
+    // Only the fields its type uses, and what it encodes.
+    for (const k of Object.keys(out)) if (!QR_KEPT.includes(k) && !QR_FIELDS[el.qrType].includes(k as keyof QrElement)) delete out[k];
+    try {
+      out.encodes = qrPayload(el);
+      const fit = qrFit(el, Math.min(el.width, el.height));
+      out.squareMm = round(fit.dots / dotsPerMm);
+      if (fit.dots / dotsPerMm < 0.3) out.density = "Squares are too small to scan reliably: make it bigger, use less data, or errorCorrection L.";
+    } catch {
+      // render() reports the problem.
+    }
+  }
   return out;
 }
 
@@ -138,6 +153,8 @@ const ENUMS: Record<string, readonly string[]> = {
   mode: ["dither", "threshold"],
   format: BARCODE_FORMATS,
   errorCorrection: ["L", "M", "Q", "H"],
+  qrType: QR_TYPES,
+  security: WIFI_SECURITY,
   shape: ["rect", "ellipse", "line"],
   icon: ICON_IDS,
 };
@@ -146,7 +163,10 @@ const ENUMS: Record<string, readonly string[]> = {
  * Apply an agent's properties to an element: lengths from millimeters, only
  * known fields of the right type. Returns the fields it couldn't use and why.
  */
-function applyProps(el: LabelElement, args: Args, dotsPerMm: number): { el: LabelElement; ignored: string[] } {
+function applyProps(el: LabelElement, input: Args, dotsPerMm: number): { el: LabelElement; ignored: string[] } {
+  const args = { ...input };
+  // Coordinates are kept as typed, but agents send numbers.
+  for (const k of ["latitude", "longitude"]) if (typeof args[k] === "number") args[k] = String(args[k]);
   const out = { ...el } as unknown as Record<string, unknown>;
   const ignored: string[] = [];
   const lengths = lengthKeys(el.type);
@@ -272,10 +292,31 @@ const ELEMENT_PROPS = {
   imageDataUrl: { type: "string", description: "image: the image as a data:image/...;base64,... URL instead of a path." },
   mode: { type: "string", enum: ENUMS.mode, description: "image: dither for photos, threshold for logos and line art." },
   threshold: { type: "number", description: "image: 0-255, pixels darker than this print (threshold mode)." },
-  value: { type: "string", description: "barcode, qr: the encoded value. {count} works here too." },
+  value: { type: "string", description: "barcode: the encoded value. qr (link, text): the link or text. {count} works here too." },
   format: { type: "string", enum: ENUMS.format, description: "barcode" },
   showText: { type: "boolean", description: "barcode: print the value under the bars." },
-  errorCorrection: { type: "string", enum: ENUMS.errorCorrection, description: "qr" },
+  errorCorrection: { type: "string", enum: ENUMS.errorCorrection, description: "qr: L is smallest, H survives the most damage. Use L or M on small labels." },
+  qrType: {
+    type: "string",
+    enum: ENUMS.qrType,
+    description:
+      "qr: what scanning does. link (value), text (value), email (email, subject, body), wifi (ssid, password, security, hidden), phone (phone), sms (phone, body), contact (name, phone, email, company, jobTitle, website, address), location (latitude, longitude). Only that type's fields are used; LabelPad builds and escapes the code. Defaults to text when only value is given.",
+  },
+  email: { type: "string", description: "qr email, contact: the address." },
+  subject: { type: "string", description: "qr email" },
+  body: { type: "string", description: "qr email: the message. qr sms: the text message." },
+  phone: { type: "string", description: "qr phone, sms, contact: the number, such as +1 555 123 4567." },
+  ssid: { type: "string", description: "qr wifi: the network name." },
+  password: { type: "string", description: "qr wifi" },
+  security: { type: "string", enum: ENUMS.security, description: "qr wifi: WPA covers WPA2 and WPA3; nopass for an open network." },
+  hidden: { type: "boolean", description: "qr wifi: the network doesn't broadcast its name." },
+  name: { type: "string", description: "qr contact: the person's full name. image: the picture's name." },
+  company: { type: "string", description: "qr contact" },
+  jobTitle: { type: "string", description: "qr contact" },
+  website: { type: "string", description: "qr contact" },
+  address: { type: "string", description: "qr contact: postal address on one line." },
+  latitude: { type: "string", description: "qr location: decimal degrees, such as 51.5007." },
+  longitude: { type: "string", description: "qr location: decimal degrees, such as -0.1246." },
   icon: { type: "string", description: "icon: an id from list_icons." },
   strokeWidth: { type: "number", description: "icon: line weight (1-3 looks right). shape: outline in mm." },
   shape: { type: "string", enum: ENUMS.shape, description: "shape" },
@@ -481,7 +522,7 @@ export const TOOLS: Tool[] = [
     name: "add_element",
     title: "Add to label",
     description:
-      "Add text, a date/time, an image, a barcode, a QR code, an icon or a shape. Leave out what you don't need: defaults fit the label. Keep it inside the label's safeArea (1 mm from each edge, see get_label); you get a warning if it crosses. Returns the element (with its id) and any problem, such as an invalid barcode value.",
+      "Add text, a date/time, an image, a barcode, a QR code (a link, text, email, Wi-Fi login, phone number, text message, contact card or map location: see qrType), an icon or a shape. Leave out what you don't need: defaults fit the label. Keep it inside the label's safeArea (1 mm from each edge, see get_label); you get a warning if it crosses. Returns the element (with its id) and any problem, such as an invalid barcode value.",
     inputSchema: { type: "object", properties: { ...TAB, type: { type: "string", enum: TYPES }, ...ELEMENT_PROPS }, required: ["type"] },
     run: async (args, host) => {
       const { agent } = target(host, args);
@@ -499,6 +540,8 @@ export const TOOLS: Tool[] = [
         const width = Math.min(dots.width - 8, Math.round((dots.height - 8) * aspect));
         base = { ...base, src: image.src, name: image.name, width, height: Math.round(width / aspect) } as LabelElement;
       }
+      // An agent giving only a QR code's value means it as it is, as before QR types.
+      if (type === "qr" && args.qrType === undefined && args.value !== undefined) base = { ...base, qrType: "text" } as LabelElement;
       const applied = applyProps(base, args, dots.dotsPerMm);
       let el = keepProportions(applied.el, args, aspect);
       if (args.x === undefined) el = { ...el, x: Math.round((dots.width - el.width) / 2) };
@@ -695,10 +738,13 @@ export const TOOLS: Tool[] = [
   {
     name: "list_icons",
     title: "List icons",
-    description: "Ids of the icons an icon element can show.",
-    inputSchema: { type: "object", properties: {} },
+    description: "Ids of the icons an icon element can show: every Lucide icon (lucide.dev), by kebab-case name. With no search, the popular ones for labels.",
+    inputSchema: { type: "object", properties: { search: { type: "string", description: 'Part of a name, such as "arrow" or "battery". Leave out for the popular icons.' } } },
     annotations: { readOnlyHint: true },
-    run: async () => json(ICON_IDS),
+    run: async (args) => {
+      const q = str(args.search)?.toLowerCase().replace(/s+/g, "-");
+      return json(q ? ICON_IDS.filter((id) => id.includes(q)) : POPULAR_IDS);
+    },
   },
   {
     name: "list_fonts",
