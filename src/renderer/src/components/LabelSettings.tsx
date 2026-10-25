@@ -1,5 +1,5 @@
 import { PRINTERS, type LabelSize, type PrinterId, type PrinterProfile } from "../printer/label";
-import { Field, NumberInput, Segmented } from "./fields";
+import { Field, NumberInput } from "./fields";
 
 type Props = {
   size: LabelSize;
@@ -38,11 +38,13 @@ export function LabelSettings({ size, profile, onChange, onPrinter, connectedPri
         </div>
       ) : (
         <Field label="Printer">
-          <Segmented
-            value={profile.id}
-            onChange={onPrinter}
-            options={Object.values(PRINTERS).map((p) => ({ value: p.id, label: p.name, title: `Lay this label out for the ${p.name}` }))}
-          />
+          <select value={profile.id} onChange={(e) => onPrinter(e.target.value as PrinterId)} title="The printer this label is laid out for">
+            {Object.values(PRINTERS).map((p) => (
+              <option key={p.id} value={p.id}>
+                Niimbot {p.name} · {Math.round(p.dotsPerMm * 25.4)} dpi, up to {Math.floor(p.printheadPixels / p.dotsPerMm)} mm wide
+              </option>
+            ))}
+          </select>
         </Field>
       )}
       <div className="presets">
