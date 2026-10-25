@@ -450,6 +450,9 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
         onRendered={onRendered}
         clock={clock}
         count={counter.start}
+        dotsPerMm={profile.dotsPerMm}
+        zoomLevel={settings.zoom}
+        onZoom={(zoom) => updateSettings({ zoom })}
       />
       {active && slots.actions && createPortal(actions, slots.actions)}
       {active && slots.toolbar && createPortal(<Toolbar onAdd={add} />, slots.toolbar)}

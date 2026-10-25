@@ -26,6 +26,7 @@ tauri-plugin-dialog = "2.8"
 tauri-plugin-opener = "2"
 tauri-plugin-process = "2"
 tauri-plugin-updater = "2"
+tauri-plugin-window-state = "2"
 tokio = { version = "1", features = ["sync", "fs", "rt-multi-thread", "io-util", "io-std", "time", "macros"] }
 ttf-parser = { version = "0.25", default-features = false, features = ["std"] }
 

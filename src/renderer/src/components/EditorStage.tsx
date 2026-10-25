@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { flushSync } from "react-dom";
 import Moveable from "react-moveable";
+import { ZoomIn, ZoomOut } from "lucide-react";
 import { bounds } from "../editor/arrange";
 import { renderLabel, type RenderIssues } from "../editor/render";
 import { keepsAspect, type LabelElement } from "../editor/types";
+import type { Zoom } from "../settings/useSettings";
 
 type Props = {
   elements: LabelElement[];
@@ -24,10 +26,19 @@ type Props = {
   clock: number;
   /** The number {count} shows in the preview. */
   count: number;
+  /** Printer resolution, to show the label at the size it prints. */
+  dotsPerMm: number;
+  zoomLevel: Zoom;
+  onZoom: (zoom: Zoom) => void;
 };
 
+/** Screen pixels per label dot. */
+const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 8;
-const STAGE_PADDING = 96;
+/** The white frame around the label. */
+const FRAME_PADDING = 24;
+/** Each zoom-in / zoom-out step. */
+const ZOOM_STEP = 1.25;
 
 /**
  * The label canvas plus an invisible box per element that Moveable uses for
@@ -51,6 +62,9 @@ export function EditorStage({
   onRendered,
   clock,
   count,
+  dotsPerMm,
+  zoomLevel,
+  onZoom,
 }: Props) {
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -59,23 +73,48 @@ export function EditorStage({
   const moveableRef = useRef<Moveable>(null);
   const boxRefs = useRef(new Map<string, HTMLDivElement>());
   const gesturing = useRef(false);
-  const [zoom, setZoom] = useState(4);
+  const [fitZoom, setFitZoom] = useState(4);
   const [, forceRender] = useState(0);
+
+  // CSS pixels are 1/96 inch, so this shows the label at about the size it prints.
+  const actualZoom = 96 / (dotsPerMm * 25.4);
+  const fitted = zoomLevel === "fit";
+  const zoom = fitted ? fitZoom : clamp((actualZoom * zoomLevel) / 100, MIN_ZOOM, MAX_ZOOM);
+  const percent = (zoom / actualZoom) * 100;
+  const [minPercent, maxPercent] = [(MIN_ZOOM / actualZoom) * 100, (MAX_ZOOM / actualZoom) * 100];
+  const zoomTo = (p: number) => onZoom(Math.round(clamp(p, minPercent, maxPercent)));
 
   // Fit the label to the available space.
   useLayoutEffect(() => {
     const stage = stageRef.current;
-    if (!stage) return;
+    if (!stage || !fitted) return;
     const fit = () => {
-      const z = Math.min((stage.clientWidth - STAGE_PADDING) / width, (stage.clientHeight - STAGE_PADDING) / height, MAX_ZOOM);
-      // Large 300 dpi labels can need less than 1×.
-      setZoom(Math.max(0.25, Math.round(z * 4) / 4));
+      const cs = getComputedStyle(stage);
+      const w = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - FRAME_PADDING;
+      const h = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - FRAME_PADDING;
+      // Round down so the label never quite overflows. Large 300 dpi labels can need less than 1×.
+      setFitZoom(Math.max(MIN_ZOOM, Math.floor(Math.min(w / width, h / height, MAX_ZOOM) * 4) / 4));
     };
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(stage);
     return () => ro.disconnect();
-  }, [width, height]);
+  }, [width, height, fitted]);
+
+  // Ctrl + mouse wheel (or a trackpad pinch) zooms.
+  const percentRef = useRef(percent);
+  percentRef.current = percent;
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const wheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      zoomTo(percentRef.current * Math.pow(1.002, -e.deltaY));
+    };
+    stage.addEventListener("wheel", wheel, { passive: false });
+    return () => stage.removeEventListener("wheel", wheel);
+  });
 
   // Re-render the label whenever anything changes, dropping stale async renders.
   const renderToken = useRef(0);
@@ -172,168 +211,210 @@ export function EditorStage({
   const guideLines = (size: number) => [0, margin, size / 2, size - margin, size].map((d) => d * zoom);
 
   return (
-    <div
-      className="stage"
-      ref={stageRef}
-      onPointerDown={(e) => e.target === e.currentTarget && !e.shiftKey && onSelect([])}
-      onContextMenu={(e) => {
-        // An item, or the selection's handles (which sit on top of grouped items).
-        const id = (e.target as HTMLElement).closest<HTMLElement>("[data-id]")?.dataset.id;
-        const onHandles = !id && selectedIds.length > 0 && !!(e.target as HTMLElement).closest(".moveable-control-box, .moveable-area");
-        if (!id && !onHandles) return;
-        e.preventDefault();
-        const ids = id && !selectedIds.includes(id) ? [id] : selectedIds;
-        if (id && !selectedIds.includes(id)) onSelect([id]);
-        onContextMenu(ids, e.clientX, e.clientY);
-      }}
-    >
-      <div className="label-frame">
-        <div className="label-surface" ref={surfaceRef} style={{ width: width * zoom, height: height * zoom }}>
-          <canvas ref={canvasRef} className="label-canvas" width={width} height={height} />
-          <div className="overlay" onPointerDown={startMarquee}>
-            {elements.map((el) => (
+    <div className="stage-area">
+      <div
+        className={`stage${fitted ? " fitted" : ""}`}
+        ref={stageRef}
+        onPointerDown={(e) => (e.target as HTMLElement).matches(".stage, .stage-content") && !e.shiftKey && onSelect([])}
+        // Moveable's handles sit outside the label, so keep them lined up while scrolling.
+        onScroll={() => moveableRef.current?.updateRect()}
+        onContextMenu={(e) => {
+          // An item, or the selection's handles (which sit on top of grouped items).
+          const id = (e.target as HTMLElement).closest<HTMLElement>("[data-id]")?.dataset.id;
+          const onHandles = !id && selectedIds.length > 0 && !!(e.target as HTMLElement).closest(".moveable-control-box, .moveable-area");
+          if (!id && !onHandles) return;
+          e.preventDefault();
+          const ids = id && !selectedIds.includes(id) ? [id] : selectedIds;
+          if (id && !selectedIds.includes(id)) onSelect([id]);
+          onContextMenu(ids, e.clientX, e.clientY);
+        }}
+      >
+        <div className="stage-content">
+          <div className="label-frame">
+            <div className="label-surface" ref={surfaceRef} style={{ width: width * zoom, height: height * zoom }}>
+              <canvas ref={canvasRef} className="label-canvas" width={width} height={height} />
+              <div className="overlay" onPointerDown={startMarquee}>
+                {elements.map((el) => (
+                  <div
+                    key={el.id}
+                    ref={(node) => {
+                      if (node) boxRefs.current.set(el.id, node);
+                      else boxRefs.current.delete(el.id);
+                    }}
+                    data-id={el.id}
+                    className={`box${selectedIds.includes(el.id) ? (group.length > 1 ? " selected in-selection" : " selected") : ""}`}
+                    style={boxStyle(el)}
+                    onMouseDown={(e) => {
+                      if (e.button !== 0) return;
+                      const native = e.nativeEvent;
+                      const isSelected = selectedIds.includes(el.id);
+                      // Shift (or Ctrl/Cmd) adds or removes an item without moving anything.
+                      if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                        onSelect(isSelected ? selectedIds.filter((id) => id !== el.id) : [...selectedIds, el.id]);
+                        return;
+                      }
+                      if (isSelected && group.length === 1) return;
+                      if (!isSelected) flushSync(() => onSelect([el.id]));
+                      moveableRef.current?.dragStart(native, e.currentTarget);
+                    }}
+                    onDoubleClick={() => el.type === "text" && onEditText(el.id)}
+                  />
+                ))}
+              </div>
               <div
-                key={el.id}
-                ref={(node) => {
-                  if (node) boxRefs.current.set(el.id, node);
-                  else boxRefs.current.delete(el.id);
-                }}
-                data-id={el.id}
-                className={`box${selectedIds.includes(el.id) ? (group.length > 1 ? " selected in-selection" : " selected") : ""}`}
-                style={boxStyle(el)}
-                onMouseDown={(e) => {
-                  if (e.button !== 0) return;
-                  const native = e.nativeEvent;
-                  const isSelected = selectedIds.includes(el.id);
-                  // Shift (or Ctrl/Cmd) adds or removes an item without moving anything.
-                  if (e.shiftKey || e.ctrlKey || e.metaKey) {
-                    onSelect(isSelected ? selectedIds.filter((id) => id !== el.id) : [...selectedIds, el.id]);
-                    return;
-                  }
-                  if (isSelected && group.length === 1) return;
-                  if (!isSelected) flushSync(() => onSelect([el.id]));
-                  moveableRef.current?.dragStart(native, e.currentTarget);
-                }}
-                onDoubleClick={() => el.type === "text" && onEditText(el.id)}
+                className="safe-margin"
+                aria-hidden
+                style={{ left: margin * zoom, top: margin * zoom, width: (width - 2 * margin) * zoom, height: (height - 2 * margin) * zoom }}
               />
-            ))}
+              {marquee && (
+                <div
+                  className="marquee"
+                  style={{
+                    left: Math.min(marquee.x0, marquee.x1) * zoom,
+                    top: Math.min(marquee.y0, marquee.y1) * zoom,
+                    width: Math.abs(marquee.x1 - marquee.x0) * zoom,
+                    height: Math.abs(marquee.y1 - marquee.y0) * zoom,
+                  }}
+                />
+              )}
+            </div>
           </div>
-          <div
-            className="safe-margin"
-            aria-hidden
-            style={{ left: margin * zoom, top: margin * zoom, width: (width - 2 * margin) * zoom, height: (height - 2 * margin) * zoom }}
+        </div>
+
+        {selected && target && (
+          <Moveable
+            ref={moveableRef}
+            target={target}
+            draggable
+            resizable
+            rotatable
+            keepRatio={keepsAspect(selected)}
+            origin={false}
+            rotationPosition="top"
+            snappable
+            snapThreshold={6}
+            snapRotationThreshold={4}
+            snapRotationDegrees={[0, 90, 180, 270]}
+            isDisplaySnapDigit={false}
+            snapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
+            elementSnapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
+            verticalGuidelines={guideLines(width)}
+            horizontalGuidelines={guideLines(height)}
+            elementGuidelines={guides}
+            onDragStart={(e) => {
+              startGesture();
+              e.set([selected.x * zoom, selected.y * zoom]);
+            }}
+            onDrag={(e) => {
+              const [tx, ty] = e.beforeTranslate;
+              e.target.style.transform = `translate(${tx}px, ${ty}px) rotate(${selected.rotation}deg)`;
+              onChange(selected.id, { x: tx / zoom, y: ty / zoom }, { transient: true });
+            }}
+            onDragEnd={endGesture}
+            onResizeStart={(e) => {
+              startGesture();
+              e.setOrigin(["%", "%"]);
+              if (e.dragStart) e.dragStart.set([selected.x * zoom, selected.y * zoom]);
+            }}
+            onResize={(e) => {
+              const [tx, ty] = e.drag.beforeTranslate;
+              e.target.style.width = `${e.width}px`;
+              e.target.style.height = `${e.height}px`;
+              e.target.style.transform = `translate(${tx}px, ${ty}px) rotate(${selected.rotation}deg)`;
+              onChange(selected.id, { x: tx / zoom, y: ty / zoom, width: e.width / zoom, height: e.height / zoom }, { transient: true });
+            }}
+            onResizeEnd={endGesture}
+            onRotateStart={(e) => {
+              startGesture();
+              e.set(selected.rotation);
+            }}
+            onRotate={(e) => {
+              e.target.style.transform = `translate(${selected.x * zoom}px, ${selected.y * zoom}px) rotate(${e.beforeRotate}deg)`;
+              onChange(selected.id, { rotation: normalizeAngle(e.beforeRotate) }, { transient: true });
+            }}
+            onRotateEnd={endGesture}
           />
-          {marquee && (
-            <div
-              className="marquee"
-              style={{
-                left: Math.min(marquee.x0, marquee.x1) * zoom,
-                top: Math.min(marquee.y0, marquee.y1) * zoom,
-                width: Math.abs(marquee.x1 - marquee.x0) * zoom,
-                height: Math.abs(marquee.y1 - marquee.y0) * zoom,
-              }}
-            />
-          )}
+        )}
+
+        {groupTargets.length > 1 && (
+          <Moveable
+            ref={moveableRef}
+            target={groupTargets}
+            draggable
+            passDragArea
+            snappable
+            snapThreshold={6}
+            isDisplaySnapDigit={false}
+            snapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
+            elementSnapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
+            verticalGuidelines={guideLines(width)}
+            horizontalGuidelines={guideLines(height)}
+            elementGuidelines={guides}
+            onDragGroupStart={(e) => {
+              startGesture();
+              e.events.forEach((ev) => {
+                const el = byId(ev.target);
+                if (el) ev.set([el.x * zoom, el.y * zoom]);
+              });
+            }}
+            onDragGroup={(e) => {
+              const patches: Record<string, Partial<LabelElement>> = {};
+              e.events.forEach((ev) => {
+                const el = byId(ev.target);
+                if (!el) return;
+                const [tx, ty] = ev.beforeTranslate;
+                ev.target.style.transform = `translate(${tx}px, ${ty}px) rotate(${el.rotation}deg)`;
+                patches[el.id] = { x: tx / zoom, y: ty / zoom };
+              });
+              onChangeMany(patches, { transient: true });
+            }}
+            onDragGroupEnd={endGesture}
+          />
+        )}
+      </div>
+      <div className="stage-footer">
+        <span className="stage-size">
+          {width} × {height} dots · the preview shows exactly what prints
+        </span>
+        <div className="zoom-bar">
+          <button className={`zoom-chip${fitted ? " active" : ""}`} title="Fit the label to the window" onClick={() => onZoom("fit")}>
+            Fit
+          </button>
+          <button
+            className={`zoom-chip${zoomLevel === 100 ? " active" : ""}`}
+            title="Show the label at the size it prints (how close depends on your screen)"
+            onClick={() => onZoom(100)}
+          >
+            Actual size
+          </button>
+          <button className="icon-button" title="Zoom out (Ctrl + scroll)" onClick={() => zoomTo(percent / ZOOM_STEP)} disabled={percent <= minPercent + 0.5}>
+            <ZoomOut size={15} />
+          </button>
+          <input
+            type="range"
+            className="zoom-slider"
+            aria-label="Zoom"
+            // Logarithmic, so each bit of the slider zooms by the same factor.
+            min={Math.log(minPercent)}
+            max={Math.log(maxPercent)}
+            step="any"
+            value={Math.log(percent)}
+            onChange={(e) => zoomTo(Math.exp(Number(e.target.value)))}
+          />
+          <button className="icon-button" title="Zoom in (Ctrl + scroll)" onClick={() => zoomTo(percent * ZOOM_STEP)} disabled={percent >= maxPercent - 0.5}>
+            <ZoomIn size={15} />
+          </button>
+          <span className="zoom-value">{Math.round(percent)}%</span>
         </div>
       </div>
-      <p className="stage-caption">
-        {width} × {height} dots · {Math.round(zoom * 100) / 100}× zoom · the preview shows exactly what prints
-      </p>
-
-      {selected && target && (
-        <Moveable
-          ref={moveableRef}
-          target={target}
-          draggable
-          resizable
-          rotatable
-          keepRatio={keepsAspect(selected)}
-          origin={false}
-          rotationPosition="top"
-          snappable
-          snapThreshold={6}
-          snapRotationThreshold={4}
-          snapRotationDegrees={[0, 90, 180, 270]}
-          isDisplaySnapDigit={false}
-          snapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
-          elementSnapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
-          verticalGuidelines={guideLines(width)}
-          horizontalGuidelines={guideLines(height)}
-          elementGuidelines={guides}
-          onDragStart={(e) => {
-            startGesture();
-            e.set([selected.x * zoom, selected.y * zoom]);
-          }}
-          onDrag={(e) => {
-            const [tx, ty] = e.beforeTranslate;
-            e.target.style.transform = `translate(${tx}px, ${ty}px) rotate(${selected.rotation}deg)`;
-            onChange(selected.id, { x: tx / zoom, y: ty / zoom }, { transient: true });
-          }}
-          onDragEnd={endGesture}
-          onResizeStart={(e) => {
-            startGesture();
-            e.setOrigin(["%", "%"]);
-            if (e.dragStart) e.dragStart.set([selected.x * zoom, selected.y * zoom]);
-          }}
-          onResize={(e) => {
-            const [tx, ty] = e.drag.beforeTranslate;
-            e.target.style.width = `${e.width}px`;
-            e.target.style.height = `${e.height}px`;
-            e.target.style.transform = `translate(${tx}px, ${ty}px) rotate(${selected.rotation}deg)`;
-            onChange(selected.id, { x: tx / zoom, y: ty / zoom, width: e.width / zoom, height: e.height / zoom }, { transient: true });
-          }}
-          onResizeEnd={endGesture}
-          onRotateStart={(e) => {
-            startGesture();
-            e.set(selected.rotation);
-          }}
-          onRotate={(e) => {
-            e.target.style.transform = `translate(${selected.x * zoom}px, ${selected.y * zoom}px) rotate(${e.beforeRotate}deg)`;
-            onChange(selected.id, { rotation: normalizeAngle(e.beforeRotate) }, { transient: true });
-          }}
-          onRotateEnd={endGesture}
-        />
-      )}
-
-      {groupTargets.length > 1 && (
-        <Moveable
-          ref={moveableRef}
-          target={groupTargets}
-          draggable
-          passDragArea
-          snappable
-          snapThreshold={6}
-          isDisplaySnapDigit={false}
-          snapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
-          elementSnapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
-          verticalGuidelines={guideLines(width)}
-          horizontalGuidelines={guideLines(height)}
-          elementGuidelines={guides}
-          onDragGroupStart={(e) => {
-            startGesture();
-            e.events.forEach((ev) => {
-              const el = byId(ev.target);
-              if (el) ev.set([el.x * zoom, el.y * zoom]);
-            });
-          }}
-          onDragGroup={(e) => {
-            const patches: Record<string, Partial<LabelElement>> = {};
-            e.events.forEach((ev) => {
-              const el = byId(ev.target);
-              if (!el) return;
-              const [tx, ty] = ev.beforeTranslate;
-              ev.target.style.transform = `translate(${tx}px, ${ty}px) rotate(${el.rotation}deg)`;
-              patches[el.id] = { x: tx / zoom, y: ty / zoom };
-            });
-            onChangeMany(patches, { transient: true });
-          }}
-          onDragGroupEnd={endGesture}
-        />
-      )}
     </div>
   );
 }
 
 function normalizeAngle(deg: number): number {
   return ((deg % 360) + 360) % 360;
+}
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(Math.max(n, min), max);
 }
