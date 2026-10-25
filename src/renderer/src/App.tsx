@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
+import { flushSync } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -22,6 +23,8 @@ import { loadSettings, useSettings } from "./settings/useSettings";
 import { useUpdater } from "./updates/useUpdater";
 import type { LabelDoc } from "./editor/types";
 import { usePrinter } from "./printer/usePrinter";
+import { useMcpServer } from "./mcp/server";
+import type { McpHost } from "./mcp/tools";
 
 /**
  * An open label. `fresh` marks the starter label the app opens with; it's
@@ -115,7 +118,7 @@ export function App() {
     }
   }, [settings.density, details.densityMin, details.densityMax, updateSettings]);
 
-  /** Open a label in a new tab, or in place of the untouched starter label. */
+  /** Open a label in a new tab, or in place of the untouched starter label. Returns the tab's id. */
   const addTab = useCallback((initial: Draft) => {
     const tab: Tab = { id: newId(), initial };
     const { tabs, activeId, metas } = state.current;
@@ -124,25 +127,34 @@ export function App() {
     if (replace) forgetDraft(current.id);
     setTabs(replace ? tabs.map((t) => (t.id === current.id ? tab : t)) : [...tabs, tab]);
     setActiveId(tab.id);
+    return tab.id;
   }, []);
+
+  /** Open a label file, or switch to it if it's already open. Returns its tab's id. */
+  const openPath = useCallback(
+    async (path: string) => {
+      const open = state.current.tabs.find((t) => state.current.metas[t.id]?.path === path);
+      if (open) {
+        setActiveId(open.id);
+        return open.id;
+      }
+      return addTab({ doc: await readLabel(path), path, dirty: false });
+    },
+    [addTab],
+  );
 
   /** Open label files, switching to any that are already open. */
   const openPaths = useCallback(
     async (paths: string[]) => {
       for (const path of paths) {
-        const open = state.current.tabs.find((t) => state.current.metas[t.id]?.path === path);
-        if (open) {
-          setActiveId(open.id);
-          continue;
-        }
         try {
-          addTab({ doc: await readLabel(path), path, dirty: false });
+          await openPath(path);
         } catch (e) {
           await message(e instanceof Error ? e.message : String(e), { title: "Couldn't open label", kind: "error" });
         }
       }
     },
-    [addTab],
+    [openPath],
   );
 
   const openFile = useCallback(async () => {
@@ -164,7 +176,11 @@ export function App() {
   /** Close a tab, asking first if it has unsaved changes. The last tab is replaced by a blank label. */
   const closeTab = useCallback(async (id: string) => {
     setActiveId(id);
-    if (!(await handles.current.get(id)?.confirmDiscard())) return;
+    if (await handles.current.get(id)?.confirmDiscard()) removeTab(id);
+  }, []);
+
+  /** Close a tab without asking. The last tab is replaced by a blank label. */
+  const removeTab = (id: string) => {
     forgetDraft(id);
     const { tabs } = state.current;
     const i = tabs.findIndex((t) => t.id === id);
@@ -172,7 +188,7 @@ export function App() {
     if (!rest.length) rest.push(freshTab());
     setTabs(rest);
     setActiveId(rest[Math.min(i, rest.length - 1)].id);
-  }, []);
+  };
 
   // Ask about each label with unsaved changes before the window closes.
   useEffect(() => {
@@ -259,6 +275,36 @@ export function App() {
     setPickerOpen(false);
     printer.stopScan();
   };
+
+  // AI agents drive the same tabs, editor and printer (see mcp/). flushSync
+  // renders each change before the next tool call reads it.
+  const mcpHost = useRef<McpHost>(null!);
+  mcpHost.current = {
+    printer,
+    settings,
+    updateSettings,
+    tabs: tabs.map((t) => ({ id: t.id, active: t.id === activeId, ...(metas[t.id] ?? { title: "Untitled", path: null, dirty: false }) })),
+    activeId,
+    handle: (id) => handles.current.get(id),
+    newTab: (doc) => {
+      let id = "";
+      flushSync(() => (id = addTab({ doc, path: null, dirty: false })));
+      return id;
+    },
+    openFile: async (path) => {
+      const doc = await readLabel(path);
+      let id = "";
+      flushSync(() => {
+        const open = state.current.tabs.find((t) => state.current.metas[t.id]?.path === path);
+        if (open) setActiveId((id = open.id));
+        else id = addTab({ doc, path, dirty: false });
+      });
+      return id;
+    },
+    selectTab: (id) => flushSync(() => setActiveId(id)),
+    closeTab: (id) => flushSync(() => removeTab(id)),
+  };
+  useMcpServer(mcpHost);
 
   const [dropping, setDropping] = useState(false);
   const canDrop = (e: DragEvent) => e.dataTransfer.types.includes("Files") || e.dataTransfer.types.includes("text/plain");

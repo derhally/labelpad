@@ -126,7 +126,8 @@ export function usePrinter() {
 
   const stopScan = useCallback(() => invoke("scan_stop").catch(() => undefined), []);
 
-  const connect = useCallback(
+  /** Connect and read the printer's details; throws with the reason if it fails. */
+  const connectTo = useCallback(
     async (printer: FoundPrinter) => {
       setError(null);
       setStatus("connecting");
@@ -145,15 +146,16 @@ export function usePrinter() {
         });
         setRoll(info.rfid?.tagPresent ? info.rfid : null);
         setStatus("connected");
-        return true;
       } catch (e) {
         reset();
         setError(String(e));
-        return false;
+        throw e;
       }
     },
     [reset],
   );
+
+  const connect = useCallback((printer: FoundPrinter) => connectTo(printer).then(() => true, () => false), [connectTo]);
 
   const disconnect = useCallback(async () => {
     reset();
@@ -179,7 +181,7 @@ export function usePrinter() {
 
   const battery = heartbeat?.batteryPercents ?? details.battery;
 
-  return { status, details, heartbeat, battery, roll, progress, error, setError, found, startScan, stopScan, connect, disconnect, print };
+  return { status, details, heartbeat, battery, roll, progress, error, setError, found, startScan, stopScan, connect, connectTo, disconnect, print };
 }
 
 /** The canvas as 1 bit per pixel, MSB first, row-major; 1 = black (printed). */

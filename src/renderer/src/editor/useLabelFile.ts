@@ -75,18 +75,26 @@ export function useLabelFile(editor: Editor, opts: { tabId: string; initialPath:
     });
   }, []);
 
-  const write = useCallback(async (target: string) => {
+  /** Save to `target` and make it this label's file; throws if it can't be written. */
+  const saveTo = useCallback(async (target: string) => {
     const current = state.current.doc;
-    try {
-      await invoke("label_write", { path: target, contents: serializeLabel(current) });
-      setPath(target);
-      setSaved(current);
-      return true;
-    } catch (e) {
-      await message(String(e), { title: "Couldn't save", kind: "error" });
-      return false;
-    }
+    await invoke("label_write", { path: target, contents: serializeLabel(current) });
+    setPath(target);
+    setSaved(current);
   }, []);
+
+  const write = useCallback(
+    async (target: string) => {
+      try {
+        await saveTo(target);
+        return true;
+      } catch (e) {
+        await message(String(e), { title: "Couldn't save", kind: "error" });
+        return false;
+      }
+    },
+    [saveTo],
+  );
 
   const saveAs = useCallback(async () => {
     const chosen = await save({ filters: FILE_FILTERS, defaultPath: `${state.current.path ? fileTitle(state.current.path) : "Label"}.${FILE_EXTENSION}` });
@@ -96,5 +104,5 @@ export function useLabelFile(editor: Editor, opts: { tabId: string; initialPath:
 
   const saveFile = useCallback(() => (state.current.path ? write(state.current.path) : saveAs()), [write, saveAs]);
 
-  return { path, title, dirty, saveFile, saveAs, confirmDiscard };
+  return { path, title, dirty, saveFile, saveAs, saveTo, confirmDiscard };
 }

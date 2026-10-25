@@ -1,3 +1,5 @@
+mod mcp;
+
 use std::sync::Arc;
 
 use printer::ble::{Bluetooth, FoundPrinter};
@@ -289,6 +291,11 @@ fn update_supported() -> bool {
     !cfg!(target_os = "linux") || std::env::var_os("APPIMAGE").is_some()
 }
 
+/// `labelpad --mcp`: serve AI agents over stdio, through the running app.
+pub fn run_mcp_stdio() -> i32 {
+    mcp::run_stdio()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
@@ -298,6 +305,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Printer::default())
+        .manage(Arc::new(mcp::Bridge::default()))
         // Windows and Linux pass a double-clicked file as an argument.
         .manage(OpenedFiles(std::sync::Mutex::new(
             std::env::args_os().skip(1).map(std::path::PathBuf::from).filter(|p| is_label_file(p)).map(|p| p.to_string_lossy().into_owned()).collect(),
@@ -315,7 +323,10 @@ pub fn run() {
             template_save,
             template_delete,
             update_supported,
-            opened_files_take
+            opened_files_take,
+            mcp::mcp_ready,
+            mcp::mcp_reply,
+            mcp::image_read
         ])
         .build(tauri::generate_context!())
         .expect("error while running LabelPad")

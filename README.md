@@ -24,7 +24,7 @@ Turn on the printer, click **Connect printer**, and pick it from the list. You d
 | Path | What it is |
 | --- | --- |
 | `src/renderer` | React UI: the label editor and its 1-bit renderer |
-| `src-tauri/src` | Tauri app: commands the UI calls (`scan_start`, `printer_connect`, `printer_print`, …) |
+| `src-tauri/src` | Tauri app: commands the UI calls (`scan_start`, `printer_connect`, `printer_print`, …) and the `--mcp` bridge for AI agents |
 | `src-tauri/printer` | Printer protocol: packets, image encoding, print jobs and the Bluetooth transport |
 | `scripts/gen-protocol.cjs` | Regenerates the printer model table and the reference test fixtures from niimbluelib |
 
@@ -59,6 +59,38 @@ Add text, dates, images, barcodes, QR codes, icons and shapes from the left tool
 ### Linux
 
 Bluetooth needs BlueZ, and your user must be allowed to use it (usually by being in the `bluetooth` group). Building needs `libwebkit2gtk-4.1-dev` and `libdbus-1-dev`.
+
+## AI agents (MCP)
+
+LabelPad is also an [MCP](https://modelcontextprotocol.io) server, so an AI agent such as Claude can connect a printer, design a label and print it the way you would. The agent works in the open LabelPad window: you see each change as it's made and can undo it. If LabelPad isn't running, the agent starts it.
+
+Add it to your agent's MCP settings with the path to the LabelPad executable and the `--mcp` argument. On Windows the installer puts it in `%LOCALAPPDATA%\LabelPad\labelpad.exe`. For Claude Desktop (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "labelpad": {
+      "command": "C:\\Users\\you\\AppData\\Local\\LabelPad\\labelpad.exe",
+      "args": ["--mcp"]
+    }
+  }
+}
+```
+
+On macOS the command is `/Applications/LabelPad.app/Contents/MacOS/labelpad`. For Claude Code: `claude mcp add labelpad -- "<path to labelpad>" --mcp`.
+
+| Tool | What it does |
+| --- | --- |
+| `get_status` | Printer connection, battery, loaded roll and the open labels |
+| `scan_printers`, `connect_printer`, `disconnect_printer` | Find and connect a printer; with no name, reconnect the last one |
+| `new_label`, `open_label`, `save_label`, `select_label`, `close_label` | Start a label (blank or from a template), open, save and close `.labelpad` files |
+| `get_label`, `set_label` | Read the label, change its size, printer or numbering |
+| `add_element`, `update_element`, `remove_elements`, `arrange_element`, `undo` | Text, dates, images, barcodes, QR codes, icons and shapes, in millimeters |
+| `preview_label` | The exact 1-bit image that will print, so the agent can check its work |
+| `print_label` | Print and wait until it's done |
+| `list_templates`, `list_icons`, `list_fonts` | What's available |
+
+`labelpad --mcp` speaks MCP over stdio and passes each message to the running app over a local socket (a named pipe on Windows). The tools are in `src/renderer/src/mcp`, and run on the same editor, renderer and printer code as the window.
 
 ## Scripts
 
