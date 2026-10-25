@@ -4,10 +4,11 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { renderLabel } from "../editor/render";
 import { builtInTemplates, deleteTemplate, userTemplates, type Template } from "../editor/templates";
 import type { LabelDoc } from "../editor/types";
-import { canvasSize } from "../printer/label";
+import { canvasSize, convertDoc, profileFor } from "../printer/label";
 
 type Props = {
   open: boolean;
+  /** A blank label for the current printer; templates are laid out for the same printer. */
   blank: LabelDoc;
   onPick: (doc: LabelDoc) => void;
   onClose: () => void;
@@ -18,6 +19,8 @@ export function TemplateGallery({ open, blank, onPick, onClose }: Props) {
   const [mine, setMine] = useState<Template[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [builtIn] = useState(builtInTemplates);
+  const printer = profileFor(blank).id;
+  const forPrinter = (ts: Template[]) => ts.map((t) => ({ ...t, doc: convertDoc(t.doc, printer) }));
 
   useEffect(() => {
     if (!open) return;
@@ -63,7 +66,7 @@ export function TemplateGallery({ open, blank, onPick, onClose }: Props) {
                 {blank.size.widthMm} × {blank.size.lengthMm} mm
               </span>
             </button>
-            {builtIn.map((t) => (
+            {forPrinter(builtIn).map((t) => (
               <TemplateCard key={t.id} template={t} onPick={onPick} />
             ))}
           </div>
@@ -72,7 +75,7 @@ export function TemplateGallery({ open, blank, onPick, onClose }: Props) {
           {error && <div className="notice error"><span>{error}</span></div>}
           {mine.length ? (
             <div className="template-grid">
-              {mine.map((t) => (
+              {forPrinter(mine).map((t) => (
                 <TemplateCard key={t.id} template={t} onPick={onPick} onDelete={() => void remove(t)} />
               ))}
             </div>
@@ -111,7 +114,7 @@ function useThumbnail(doc: LabelDoc): string | null {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
-    const { width, height } = canvasSize(doc.size, 96);
+    const { width, height } = canvasSize(doc.size, profileFor(doc));
     const canvas = document.createElement("canvas");
     renderLabel(canvas, width, height, doc.elements).then(() => live && setUrl(canvas.toDataURL()));
     return () => {

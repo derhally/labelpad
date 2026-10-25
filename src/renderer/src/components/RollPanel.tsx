@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Disc3 } from "lucide-react";
-import { LABEL_PRESETS, type LabelSize } from "../printer/label";
+import type { LabelPreset, LabelSize } from "../printer/label";
 import type { RollInfo } from "../printer/usePrinter";
 
 type Props = {
@@ -8,6 +8,8 @@ type Props = {
   /** The size you've confirmed for this roll type before, if any. */
   knownSize?: LabelSize;
   labelSize: LabelSize;
+  /** The printer's usual sizes, offered when asking about a new roll. */
+  presets: LabelPreset[];
   onRemember: (size: LabelSize) => void;
   onUseSize: (size: LabelSize) => void;
 };
@@ -19,9 +21,9 @@ const name = (s: LabelSize) => `${s.widthMm} × ${s.lengthMm} mm`;
  * The loaded label roll, from its RFID tag. The tag only identifies the roll
  * type, so its size is asked once and then remembered for that type.
  */
-export function RollPanel({ roll, knownSize, labelSize, onRemember, onUseSize }: Props) {
+export function RollPanel({ roll, knownSize, labelSize, presets, onRemember, onUseSize }: Props) {
   const left = Math.max(0, roll.allPaper - roll.usedPaper);
-  const options = LABEL_PRESETS.some((p) => same(p, labelSize)) ? LABEL_PRESETS : [{ ...labelSize, name: name(labelSize) }, ...LABEL_PRESETS];
+  const options = presets.some((p) => same(p, labelSize)) ? presets : [{ ...labelSize, name: name(labelSize) }, ...presets];
   const [choice, setChoice] = useState(name(labelSize));
 
   return (

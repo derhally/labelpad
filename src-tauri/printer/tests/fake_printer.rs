@@ -1,5 +1,5 @@
-//! Drives the client against a fake D11 that answers like the real one, and
-//! checks the command sequence of a print job.
+//! Drives the client against a fake D11 (and M3) that answers like the real
+//! one, and checks the command sequence of a print job.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -17,6 +17,8 @@ struct FakeD11 {
     copies: Mutex<u16>,
     /// Labels printed so far in this job; page-index packets count across pages.
     printed: Mutex<u16>,
+    /// Answer as an M3 (protocol v5, status polling) instead of an old D11.
+    m3: bool,
 }
 
 impl FakeD11 {
@@ -27,8 +29,11 @@ impl FakeD11 {
     fn handle(&self, p: Packet) {
         self.sent.lock().unwrap().push(p.command);
         match p.command {
-            req::CONNECT => self.reply(resp::CONNECT, &[1]),
+            req::CONNECT => self.reply(resp::CONNECT, &[if self.m3 { 3 } else { 1 }]),
+            // Bytes 11-12 hold 3.02, which means protocol v5.
+            req::PRINTER_STATUS_DATA => self.reply(resp::PRINTER_STATUS_DATA, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 2]),
             req::PRINTER_INFO => match p.data[0] {
+                8 if self.m3 => self.reply(0x48, &[0x19, 0x00]),
                 8 => self.reply(0x48, &[0x02, 0x00]),
                 10 => self.reply(0x4a, &[4]),
                 9 => self.reply(0x49, &[1, 5]),
@@ -42,7 +47,13 @@ impl FakeD11 {
             req::SET_LABEL_TYPE => self.reply(resp::SET_LABEL_TYPE, &[1]),
             req::PRINT_CLEAR => self.reply(resp::PRINT_CLEAR, &[1]),
             req::PAGE_START => self.reply(resp::PAGE_START, &[1]),
-            req::SET_PAGE_SIZE => self.reply(resp::SET_PAGE_SIZE, &[1]),
+            req::SET_PAGE_SIZE => {
+                // The 13-byte form carries the copies after rows and columns.
+                if p.data.len() == 13 {
+                    *self.copies.lock().unwrap() = u16::from_be_bytes([p.data[4], p.data[5]]);
+                }
+                self.reply(resp::SET_PAGE_SIZE, &[1]);
+            }
             req::PRINT_QUANTITY => {
                 *self.copies.lock().unwrap() = u16::from_be_bytes([p.data[0], p.data[1]]);
                 self.reply(resp::PRINT_QUANTITY, &[1]);
@@ -52,8 +63,14 @@ impl FakeD11 {
                 let mut printed = self.printed.lock().unwrap();
                 for _ in 0..*self.copies.lock().unwrap() {
                     *printed += 1;
-                    self.reply(resp::PRINTER_PAGE_INDEX, &printed.to_be_bytes());
+                    if !self.m3 {
+                        self.reply(resp::PRINTER_PAGE_INDEX, &printed.to_be_bytes());
+                    }
                 }
+            }
+            req::PRINT_STATUS => {
+                let [hi, lo] = self.printed.lock().unwrap().to_be_bytes();
+                self.reply(resp::PRINT_STATUS, &[hi, lo, 100, 100]);
             }
             req::PRINT_START => {
                 *self.printed.lock().unwrap() = 0;
@@ -84,6 +101,10 @@ impl Transport for FakeTransport {
 }
 
 fn fake_d11() -> (Client, Arc<Mutex<Vec<u8>>>) {
+    fake_printer(false)
+}
+
+fn fake_printer(m3: bool) -> (Client, Arc<Mutex<Vec<u8>>>) {
     let (tx, rx) = mpsc::unbounded_channel();
     let sent = Arc::new(Mutex::new(Vec::new()));
     let printer = Arc::new(FakeD11 {
@@ -92,6 +113,7 @@ fn fake_d11() -> (Client, Arc<Mutex<Vec<u8>>>) {
         sent: sent.clone(),
         copies: Mutex::new(1),
         printed: Mutex::new(0),
+        m3,
     });
     (Client::new(FakeTransport(printer), rx), sent)
 }
@@ -175,4 +197,30 @@ async fn connects_and_prints_two_copies_on_a_d11() {
         }
     }
     assert_eq!(last_page, 2);
+}
+
+#[tokio::test]
+async fn connects_and_prints_on_an_m3() {
+    let (client, sent) = fake_printer(true);
+    let info = client.handshake().await.unwrap();
+    assert_eq!(info.model.unwrap().model, "M3");
+    assert_eq!(info.protocol_version, 5);
+    assert_eq!(info.print_task, Some(printer::PrintTaskName::D110MV4));
+
+    // 50 mm across the printhead, 2 mm along the feed, at 300 dpi; the M3 prints top first.
+    let (w, h) = (592u32, 24u32);
+    let bits = vec![0xffu8; (w * h / 8) as usize];
+    sent.lock().unwrap().clear();
+    let opts = PrintOptions { copies: 3, density: 3, status_poll_interval: std::time::Duration::from_millis(1), ..Default::default() };
+    client.print_pages(&[Bitmap::from_packed(w, h, &bits), Bitmap::from_packed(w, h, &bits)], opts).await.unwrap();
+
+    let cmds = sent.lock().unwrap().clone();
+    let control: Vec<u8> = cmds.iter().copied().filter(|c| ![req::PRINT_BITMAP_ROW, req::PRINT_BITMAP_ROW_INDEXED, req::PRINT_EMPTY_ROW].contains(c)).collect();
+    let page = [req::PRINT_STATUS, req::SET_PAGE_SIZE, req::PAGE_END];
+    let mut expected = vec![req::SET_LABEL_TYPE, req::SET_DENSITY, req::PRINT_START];
+    expected.extend(page);
+    expected.extend(page);
+    // Then status polls until all six labels are done, the end, a heartbeat and the roll's tag.
+    assert_eq!(&control[..expected.len()], &expected[..]);
+    assert_eq!(&control[control.len() - 3..], &[req::PRINT_END, req::HEARTBEAT, req::RFID_INFO]);
 }

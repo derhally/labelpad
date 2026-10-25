@@ -1,9 +1,13 @@
+import type { PrinterId } from "../printer/label";
+
 /**
- * A label document. All geometry is in printer dots (8 per mm on the D11),
- * measured on the landscape canvas: x runs along the label, y across it.
+ * A label document. All geometry is in its printer's dots (8 per mm on the
+ * D11, about 11.8 on the M3), measured on the canvas `canvasSize` gives.
  */
 export type LabelDoc = {
   version: 1;
+  /** The printer it's laid out for. Missing in labels from before the M3, which are D11 labels. */
+  printer?: PrinterId;
   size: { widthMm: number; lengthMm: number };
   elements: LabelElement[];
   /** Numbering for {count}: the next label's number and how much it goes up by. */

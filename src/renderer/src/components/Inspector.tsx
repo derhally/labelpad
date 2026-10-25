@@ -10,7 +10,6 @@ import { FontBrowser } from "./FontBrowser";
 import { FontPicker } from "./FontPicker";
 import { AlignControls } from "./AlignControls";
 import { spell } from "../locale";
-import { DOTS_PER_MM } from "../printer/label";
 import { Field, NumberInput, Segmented, Toggle } from "./fields";
 import { TYPE_META } from "./Toolbar";
 
@@ -26,7 +25,7 @@ type Props = {
   onReorder: (to: "up" | "down" | "top" | "bottom") => void;
   onPickIcon: () => void;
   onReplaceImage: () => void;
-  label: { width: number; height: number };
+  label: { width: number; height: number; dotsPerMm: number };
   onArrange: (patches: Record<string, Partial<LabelElement>>) => void;
 };
 
@@ -37,7 +36,10 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
   // Typing is one undo step per focus, not per keystroke.
   const typing = { onFocus: onCheckpoint };
   const type = (patch: Partial<LabelElement>) => onChange(patch, { transient: true });
-  const mm = (dots: number) => dots / DOTS_PER_MM;
+  const mm = (dots: number) => dots / label.dotsPerMm;
+  const dots = (mm: number) => mm * label.dotsPerMm;
+  // Slider ranges in dots are set for 8 dots per mm and grow with the resolution.
+  const k = label.dotsPerMm / 8;
   const now = new Date();
 
   return (
@@ -81,7 +83,7 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
             <textarea id="inspector-text" rows={3} value={el.text} {...typing} onChange={(e) => type({ text: e.target.value })} />
           </Field>
           <CounterHint onInsert={() => onChange({ text: `${el.text}{count}` })} />
-          <TextStyleFields el={el} previewText={el.text} onChange={onChange} onCheckpoint={onCheckpoint} />
+          <TextStyleFields el={el} previewText={el.text} onChange={onChange} onCheckpoint={onCheckpoint} maxFontSize={Math.round(96 * k)} />
         </>
       )}
 
@@ -150,7 +152,7 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
           <p className="muted hint">
             Prints as: <strong>{dateTimeText(el, now)}</strong>
           </p>
-          <TextStyleFields el={el} previewText={dateTimeText(el, now)} onChange={onChange} onCheckpoint={onCheckpoint} />
+          <TextStyleFields el={el} previewText={dateTimeText(el, now)} onChange={onChange} onCheckpoint={onCheckpoint} maxFontSize={Math.round(96 * k)} />
         </>
       )}
 
@@ -250,7 +252,7 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
             />
           </Field>
           <Field label={`Line weight · ${el.strokeWidth} dots`}>
-            <input type="range" min={1} max={16} value={el.strokeWidth} onPointerDown={onCheckpoint} onChange={(e) => type({ strokeWidth: Number(e.target.value) })} />
+            <input type="range" min={1} max={Math.round(16 * k)} value={el.strokeWidth} onPointerDown={onCheckpoint} onChange={(e) => type({ strokeWidth: Number(e.target.value) })} />
           </Field>
           {el.shape !== "line" && (
             <Toggle checked={el.filled} onChange={(filled) => onChange({ filled })}>
@@ -259,7 +261,7 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
           )}
           {el.shape === "rect" && (
             <Field label={`Corner radius · ${el.cornerRadius} dots`}>
-              <input type="range" min={0} max={40} value={el.cornerRadius} onPointerDown={onCheckpoint} onChange={(e) => type({ cornerRadius: Number(e.target.value) })} />
+              <input type="range" min={0} max={Math.round(40 * k)} value={el.cornerRadius} onPointerDown={onCheckpoint} onChange={(e) => type({ cornerRadius: Number(e.target.value) })} />
             </Field>
           )}
         </>
@@ -270,10 +272,10 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
         <AlignControls els={[el]} label={label} onApply={onArrange} />
         <span className="section-label">Position and size (mm)</span>
         <div className="grid-2">
-          <NumberInput label="X" step={0.5} value={mm(el.x)} onChange={(v) => onChange({ x: v * DOTS_PER_MM })} />
-          <NumberInput label="Y" step={0.5} value={mm(el.y)} onChange={(v) => onChange({ y: v * DOTS_PER_MM })} />
-          <NumberInput label="W" step={0.5} min={0.5} value={mm(el.width)} onChange={(v) => onChange({ width: v * DOTS_PER_MM })} />
-          <NumberInput label="H" step={0.5} min={0.5} value={mm(el.height)} onChange={(v) => onChange({ height: v * DOTS_PER_MM })} />
+          <NumberInput label="X" step={0.5} value={mm(el.x)} onChange={(v) => onChange({ x: dots(v) })} />
+          <NumberInput label="Y" step={0.5} value={mm(el.y)} onChange={(v) => onChange({ y: dots(v) })} />
+          <NumberInput label="W" step={0.5} min={0.5} value={mm(el.width)} onChange={(v) => onChange({ width: dots(v) })} />
+          <NumberInput label="H" step={0.5} min={0.5} value={mm(el.height)} onChange={(v) => onChange({ height: dots(v) })} />
           <NumberInput label="↻" step={15} value={el.rotation} suffix="°" onChange={(v) => onChange({ rotation: ((v % 360) + 360) % 360 })} />
         </div>
       </div>
@@ -282,7 +284,19 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
 }
 
 /** Font, alignment and fit, shared by text and date/time. */
-function TextStyleFields({ el, previewText, onChange, onCheckpoint }: { el: TextStyle; previewText: string; onChange: Update; onCheckpoint: () => void }) {
+function TextStyleFields({
+  el,
+  previewText,
+  onChange,
+  onCheckpoint,
+  maxFontSize,
+}: {
+  el: TextStyle;
+  previewText: string;
+  onChange: Update;
+  onCheckpoint: () => void;
+  maxFontSize: number;
+}) {
   const [browsing, setBrowsing] = useState(false);
   return (
     <>
@@ -337,7 +351,7 @@ function TextStyleFields({ el, previewText, onChange, onCheckpoint }: { el: Text
       </Toggle>
       {!el.autoFit && (
         <Field label={`Size · ${el.fontSize} dots`}>
-          <input type="range" min={6} max={96} value={el.fontSize} onPointerDown={onCheckpoint} onChange={(e) => onChange({ fontSize: Number(e.target.value) }, { transient: true })} />
+          <input type="range" min={6} max={maxFontSize} value={el.fontSize} onPointerDown={onCheckpoint} onChange={(e) => onChange({ fontSize: Number(e.target.value) }, { transient: true })} />
         </Field>
       )}
       <Toggle checked={el.invert} onChange={(invert) => onChange({ invert })}>

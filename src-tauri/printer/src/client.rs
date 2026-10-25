@@ -168,6 +168,12 @@ impl Client {
         wait_for(&mut rx, &expected, wait).await
     }
 
+    /// Send without waiting for a reply; any reply is ignored.
+    async fn send_one_way(&self, p: &Packet) -> Result<()> {
+        let _io = self.inner.io.lock().await;
+        self.write(p).await
+    }
+
     async fn send_all(&self, packets: &[Packet], wait: Duration, mut progress: impl FnMut(usize, usize)) -> Result<()> {
         for (i, p) in packets.iter().enumerate() {
             progress(i + 1, packets.len());
@@ -309,22 +315,23 @@ impl Client {
         let direction = meta.map(|m| m.print_direction).unwrap_or(PrintDirection::Left);
         let printhead = meta.map(|m| m.printhead_pixels).or(info.printhead_width).unwrap_or(96);
 
-        if !matches!(task, PrintTaskName::D11V1 | PrintTaskName::D110) {
+        if !matches!(task, PrintTaskName::D11V1 | PrintTaskName::D110 | PrintTaskName::D110MV4) {
             return Err(Error::Unsupported(format!("Printing with the {task:?} task isn't supported yet")));
         }
 
-        // Each page: clear, start, size, quantity, image rows, end.
+        // Each page: clear, start, size, quantity, image rows, end. Newer
+        // printers (D110MV4) take size and quantity in one packet and no clear or start.
         let mut pages = Vec::with_capacity(bitmaps.len());
         for bitmap in bitmaps {
             let image = encode_image(bitmap, direction);
             if image.cols > printhead.div_ceil(8) * 8 {
                 return Err(Error::Unsupported(format!("Label is {} dots wide but the printhead has {printhead}", image.cols)));
             }
-            let size = match task {
-                PrintTaskName::D11V1 => gen::set_page_size_2b(image.rows),
-                _ => gen::set_page_size_4b(image.rows, image.cols),
+            let mut packets = match task {
+                PrintTaskName::D11V1 => vec![gen::print_clear(), gen::page_start(), gen::set_page_size_2b(image.rows), gen::set_print_quantity(opts.copies)],
+                PrintTaskName::D110MV4 => vec![gen::set_page_size_13b(image.rows, image.cols, opts.copies)],
+                _ => vec![gen::print_clear(), gen::page_start(), gen::set_page_size_4b(image.rows, image.cols), gen::set_print_quantity(opts.copies)],
             };
-            let mut packets = vec![gen::print_clear(), gen::page_start(), size, gen::set_print_quantity(opts.copies)];
             packets.extend(gen::write_image_data(&image, printhead));
             packets.push(gen::page_end());
             pages.push(packets);
@@ -337,13 +344,20 @@ impl Client {
         };
 
         let result = async {
-            self.send_all(&[gen::set_density(opts.density), gen::set_label_type(opts.label_type), gen::print_start_1b()], DEFAULT_TIMEOUT, |_, _| {})
-                .await?;
+            let init = match task {
+                PrintTaskName::D110MV4 => [gen::set_label_type(opts.label_type), gen::set_density(opts.density), gen::print_start_9b(total)],
+                _ => [gen::set_density(opts.density), gen::set_label_type(opts.label_type), gen::print_start_1b()],
+            };
+            self.send_all(&init, DEFAULT_TIMEOUT, |_, _| {}).await?;
             // Subscribe before sending so an early page-index packet isn't missed.
             let mut rx = self.inner.packets.subscribe();
             let count = pages.len();
             let mut last = 0;
             for (index, packets) in pages.iter().enumerate() {
+                if task == PrintTaskName::D110MV4 {
+                    // niimbluelib asks for status before each page without waiting for it.
+                    self.send_one_way(&gen::print_status()).await?;
+                }
                 self.send_all(packets, opts.page_timeout, |i, n| {
                     // Sending fills the bar once across all pages.
                     let pct = ((index * 100 + i * 100 / n) / count) as u8;
@@ -363,6 +377,9 @@ impl Client {
         .await;
 
         let _ = self.send(&gen::print_end(), DEFAULT_TIMEOUT).await;
+        if task == PrintTaskName::D110MV4 {
+            let _ = self.send_one_way(&gen::heartbeat(heartbeat::ADVANCED1)).await;
+        }
         // The tag's used-label count changes as labels print.
         self.refresh_rfid().await;
         result

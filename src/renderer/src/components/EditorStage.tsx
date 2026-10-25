@@ -49,7 +49,8 @@ export function EditorStage({ elements, width, height, selectedIds, onSelect, on
     if (!stage) return;
     const fit = () => {
       const z = Math.min((stage.clientWidth - STAGE_PADDING) / width, (stage.clientHeight - STAGE_PADDING) / height, MAX_ZOOM);
-      setZoom(Math.max(1, Math.round(z * 4) / 4));
+      // Large 300 dpi labels can need less than 1×.
+      setZoom(Math.max(0.25, Math.round(z * 4) / 4));
     };
     fit();
     const ro = new ResizeObserver(fit);

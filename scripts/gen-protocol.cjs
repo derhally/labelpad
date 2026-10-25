@@ -82,6 +82,8 @@ const packets = {
   printStatus: G.printStatus(),
   printEnd: G.printEnd(),
   printEmptySpace: G.printEmptySpace(300, 7),
+  printStart9b: G.printStart9b(5),
+  setPageSize13b: G.setPageSize13b(354, 592, 2),
 };
 const packetFixtures = Object.fromEntries(Object.entries(packets).map(([k, p]) => [k, hex(p.toBytes())]));
 
@@ -123,6 +125,7 @@ const images = [
   { name: "d11_label", width: 320, height: 96, direction: "left", printhead: 96, seed: 7, density: 0.3 },
   { name: "d11_short_odd", width: 77, height: 90, direction: "left", printhead: 96, seed: 3, density: 0.05 },
   { name: "top_direction", width: 384, height: 120, direction: "top", printhead: 384, seed: 11, density: 0.2 },
+  { name: "m3_wide", width: 592, height: 60, direction: "top", printhead: 851, seed: 5, density: 0.2 },
   { name: "blank", width: 100, height: 96, direction: "left", printhead: 96, seed: 1, density: 0 },
 ].map((img) => {
   const px = img.density === 0 ? new Uint8Array(img.width * img.height) : makeImage(img.width, img.height, img.seed, img.density);

@@ -1,4 +1,5 @@
 import { makeElement } from "./defaults";
+import { canvasSize, PRINTERS, type PrinterId } from "../printer/label";
 import { newId, type ElementType, type LabelDoc, type LabelElement } from "./types";
 
 /** Label files are JSON with this marker, so other JSON files are refused clearly. */
@@ -31,7 +32,8 @@ export function parseLabel(text: string): LabelDoc {
   const size = isObject(data.size) ? data.size : {};
   const widthMm = positive(size.widthMm, 12);
   const lengthMm = positive(size.lengthMm, 40);
-  const dots = { width: lengthMm * 8, height: Math.min(widthMm * 8, 96) };
+  const printer = typeof data.printer === "string" && data.printer in PRINTERS ? (data.printer as PrinterId) : undefined;
+  const dots = canvasSize({ widthMm, lengthMm }, PRINTERS[printer ?? "d11"]);
 
   const elements = (Array.isArray(data.elements) ? data.elements : []).flatMap((raw): LabelElement[] => {
     if (!isObject(raw) || !TYPES.includes(raw.type as ElementType)) return [];
@@ -48,7 +50,7 @@ export function parseLabel(text: string): LabelDoc {
   const counter =
     c && Number.isInteger(c.start) && Number.isInteger(c.step) ? { start: c.start as number, step: c.step as number } : undefined;
 
-  return { version: 1, size: { widthMm, lengthMm }, elements, ...(counter && { counter }) };
+  return { version: 1, ...(printer && { printer }), size: { widthMm, lengthMm }, elements, ...(counter && { counter }) };
 }
 
 /** "C:\labels\Shelf.labelpad" → "Shelf". */

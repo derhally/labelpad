@@ -10,6 +10,8 @@ type Props = {
   onCopies: (c: number) => void;
   onPrint: () => void;
   onConnect: () => void;
+  /** Set when the label is laid out for another printer than the one connected. */
+  mismatch?: { label: string; printer: string; onConvert: () => void };
   /** Shown when the label uses {count}. */
   numbering?: { start: number; step: number; onChange: (c: { start: number; step: number }) => void };
 };
@@ -20,7 +22,7 @@ function progressPercent(p: { page: number; pagesTotal: number; percent: number;
   return Math.min(100, ((Math.max(0, p.page - 1) + p.percent / 100) / Math.max(1, p.pagesTotal)) * 100);
 }
 
-export function PrintPanel({ printer, density, copies, onDensity, onCopies, onPrint, onConnect, numbering }: Props) {
+export function PrintPanel({ printer, density, copies, onDensity, onCopies, onPrint, onConnect, mismatch, numbering }: Props) {
   const { status, details, heartbeat } = printer;
   const connected = status === "connected" || status === "printing";
   const warning = heartbeat?.lidClosed === false ? "The lid is open." : heartbeat?.paperInserted === false ? "No labels loaded." : null;
@@ -66,6 +68,17 @@ export function PrintPanel({ printer, density, copies, onDensity, onCopies, onPr
         </div>
       )}
 
+      {mismatch && connected && (
+        <div className="notice warn">
+          <AlertTriangle size={16} />
+          <span>
+            This label is laid out for the {mismatch.label}. It's converted for the {mismatch.printer} when it prints.
+          </span>
+          <button className="button ghost small" onClick={mismatch.onConvert}>
+            Convert
+          </button>
+        </div>
+      )}
       {warning && connected && (
         <div className="notice warn">
           <AlertTriangle size={16} /> {warning}
