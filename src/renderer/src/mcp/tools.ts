@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { EditorHandle, TabMeta } from "../components/LabelEditor";
 import { align, bounds, type AlignEdge, type Box } from "../editor/arrange";
 import { makeElement } from "../editor/defaults";
-import { ICON_IDS } from "../editor/icons";
+import { ICON_IDS, POPULAR_IDS } from "../editor/icons";
 import { importImage } from "../editor/importImage";
 import { renderLabel } from "../editor/render";
 import { builtInTemplates, fromTemplate, userTemplates } from "../editor/templates";
@@ -738,10 +738,13 @@ export const TOOLS: Tool[] = [
   {
     name: "list_icons",
     title: "List icons",
-    description: "Ids of the icons an icon element can show.",
-    inputSchema: { type: "object", properties: {} },
+    description: "Ids of the icons an icon element can show: every Lucide icon (lucide.dev), by kebab-case name. With no search, the popular ones for labels.",
+    inputSchema: { type: "object", properties: { search: { type: "string", description: 'Part of a name, such as "arrow" or "battery". Leave out for the popular icons.' } } },
     annotations: { readOnlyHint: true },
-    run: async () => json(ICON_IDS),
+    run: async (args) => {
+      const q = str(args.search)?.toLowerCase().replace(/s+/g, "-");
+      return json(q ? ICON_IDS.filter((id) => id.includes(q)) : POPULAR_IDS);
+    },
   },
   {
     name: "list_fonts",
