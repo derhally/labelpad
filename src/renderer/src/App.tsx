@@ -349,7 +349,7 @@ export function App() {
       <DevicePicker
         open={pickerOpen}
         printers={printer.found}
-        lastPrinterId={settings.lastPrinter?.id}
+        lastPrinter={settings.lastPrinter ?? undefined}
         onClose={closePicker}
         onPick={async (p) => {
           setPickerOpen(false);
