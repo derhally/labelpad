@@ -3,7 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { message, open } from "@tauri-apps/plugin-dialog";
-import { Bluetooth, Columns2, FilePlus2, FolderOpen, Plus, Printer, Settings as SettingsIcon, Square, Unplug, X } from "lucide-react";
+import { Columns2, FilePlus2, FolderOpen, Plus, Printer, Settings as SettingsIcon, Square, X } from "lucide-react";
+import { ConnectButton } from "./components/ConnectButton";
 import { DevicePicker } from "./components/DevicePicker";
 import { LabelEditor, type EditorHandle, type Slots, type TabMeta } from "./components/LabelEditor";
 import { PrinterBadge } from "./components/PrinterBadge";
@@ -216,10 +217,38 @@ export function App() {
     addTab({ doc: fromTemplate(template), path: null, dirty: false });
   };
 
-  const connect = () => {
+  /** Pick a printer from the ones the scan finds. */
+  const choosePrinter = () => {
+    setFinding(false);
     setPickerOpen(true);
     printer.startScan().catch(() => setPickerOpen(false));
   };
+
+  // Quick connect: scan for the last printer and connect as soon as it shows up.
+  // If it doesn't, or there isn't one yet, the picker opens instead.
+  const [finding, setFinding] = useState(false);
+  const connect = () => {
+    if (!settings.lastPrinter) return choosePrinter();
+    setFinding(true);
+    printer.startScan().catch(() => setFinding(false));
+  };
+  useEffect(() => {
+    if (!finding) return;
+    const last = printer.found.find((p) => p.id === settings.lastPrinter?.id);
+    if (last) {
+      setFinding(false);
+      void printer.connect(last).then((ok) => !ok && choosePrinter());
+    }
+  });
+  useEffect(() => {
+    if (!finding) return;
+    // Keep scanning; the picker shows the last printer pinned while it's looked for.
+    const timer = setTimeout(() => {
+      setFinding(false);
+      setPickerOpen(true);
+    }, 12000);
+    return () => clearTimeout(timer);
+  }, [finding]);
 
   const closePicker = () => {
     setPickerOpen(false);
@@ -260,15 +289,14 @@ export function App() {
         </div>
         <div className="topbar-actions">
           <PrinterBadge status={status} name={details.deviceName ?? details.model} battery={printer.battery} />
-          {connected ? (
-            <button className="button ghost" onClick={printer.disconnect} disabled={status === "printing"}>
-              <Unplug size={16} /> Disconnect
-            </button>
-          ) : (
-            <button className="button primary" onClick={connect} disabled={status === "connecting"}>
-              <Bluetooth size={16} /> Connect printer
-            </button>
-          )}
+          <ConnectButton
+            status={status}
+            finding={finding}
+            lastPrinter={settings.lastPrinter ?? undefined}
+            onConnect={connect}
+            onDisconnect={printer.disconnect}
+            onSwitch={choosePrinter}
+          />
           <button className="icon-button" onClick={() => setSettingsOpen(true)} title="Settings">
             <SettingsIcon size={18} />
           </button>
