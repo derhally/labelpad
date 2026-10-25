@@ -1,6 +1,9 @@
-import { Monitor, Moon, RefreshCw, Sun, X } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { getVersion } from "@tauri-apps/api/app";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { ExternalLink, Monitor, Moon, Printer, RefreshCw, Sun, X } from "lucide-react";
 import type { Settings, Theme } from "../settings/useSettings";
-import type { UpdateState } from "../updates/useUpdater";
+import { RELEASES_URL, type UpdateState } from "../updates/useUpdater";
 import { Segmented, Toggle } from "./fields";
 
 type Props = {
@@ -19,11 +22,16 @@ const THEMES: { value: Theme; label: React.ReactNode }[] = [
 ];
 
 export function SettingsDialog({ open, settings, onChange, onClose, update, onCheckForUpdates }: Props) {
+  const [version, setVersion] = useState<string | null>(null);
+  useEffect(() => {
+    getVersion().then(setVersion, () => setVersion(null));
+  }, []);
+
   if (!open) return null;
 
   return (
     <div className="backdrop" onClick={onClose}>
-      <div className="dialog" role="dialog" aria-labelledby="settings-title" onClick={(e) => e.stopPropagation()}>
+      <div className="dialog settings-dialog" role="dialog" aria-labelledby="settings-title" onClick={(e) => e.stopPropagation()}>
         <header className="dialog-header">
           <h2 id="settings-title">Settings</h2>
           <button className="icon-button" onClick={onClose} aria-label="Close">
@@ -32,20 +40,17 @@ export function SettingsDialog({ open, settings, onChange, onClose, update, onCh
         </header>
 
         <div className="settings">
-          <div className="field">
-            <span>Appearance</span>
+          <Section title="Appearance" description="Follow your system, or always use light or dark.">
             <Segmented value={settings.theme} onChange={(theme) => onChange({ theme })} options={THEMES} />
-          </div>
+          </Section>
 
-          <div className="field">
-            <span>Startup</span>
+          <Section title="Startup" description="What LabelPad shows when it opens.">
             <Toggle checked={settings.restoreLast} onChange={(restoreLast) => onChange({ restoreLast })}>
               Reopen the label I was working on
             </Toggle>
-          </div>
+          </Section>
 
-          <div className="field">
-            <span>Printer</span>
+          <Section title="Printer" description="Quick connect uses the last printer you printed with.">
             {settings.lastPrinter ? (
               <div className="settings-row">
                 <span>
@@ -58,10 +63,9 @@ export function SettingsDialog({ open, settings, onChange, onClose, update, onCh
             ) : (
               <p className="muted hint">No printer connected yet.</p>
             )}
-          </div>
+          </Section>
 
-          <div className="field">
-            <span>Updates</span>
+          <Section title="Updates" description="LabelPad always asks before installing anything.">
             <Toggle checked={settings.autoUpdate} onChange={(autoUpdate) => onChange({ autoUpdate })}>
               Check for new versions once a week
             </Toggle>
@@ -71,10 +75,35 @@ export function SettingsDialog({ open, settings, onChange, onClose, update, onCh
                 <RefreshCw size={14} /> Check now
               </button>
             </div>
-          </div>
+          </Section>
         </div>
+
+        <footer className="settings-about">
+          <span className="logo">
+            <Printer size={18} />
+          </span>
+          <div className="settings-about-text">
+            <strong>LabelPad</strong>
+            <span className="muted">{version ? `Version ${version}` : "Version unknown"}</span>
+          </div>
+          <button className="button ghost" onClick={() => void openUrl(RELEASES_URL)}>
+            Release notes <ExternalLink size={14} />
+          </button>
+        </footer>
       </div>
     </div>
+  );
+}
+
+function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+  return (
+    <section className="settings-section">
+      <div className="settings-section-label">
+        <h3>{title}</h3>
+        <p className="muted hint">{description}</p>
+      </div>
+      <div className="settings-section-body">{children}</div>
+    </section>
   );
 }
 
