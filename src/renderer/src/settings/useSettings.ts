@@ -14,6 +14,10 @@ export type Settings = {
   lastPrinter: { id: string; name: string } | null;
   /** Label sizes you've confirmed for roll types, keyed by the barcode on the roll's tag. */
   rollSizes: Record<string, { widthMm: number; lengthMm: number }>;
+  /** Look for a new LabelPad release once a week. */
+  autoUpdate: boolean;
+  /** When releases were last checked (ms since epoch). */
+  lastUpdateCheck: number | null;
 };
 
 const KEY = "labelpad.settings";
@@ -26,6 +30,8 @@ const DEFAULTS: Settings = {
   restoreLast: true,
   lastPrinter: null,
   rollSizes: {},
+  autoUpdate: true,
+  lastUpdateCheck: null,
 };
 
 export function loadSettings(): Settings {
