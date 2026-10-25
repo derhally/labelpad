@@ -4,6 +4,9 @@ import type { PrinterId } from "../printer/label";
 
 export type Theme = "system" | "light" | "dark";
 
+/** How big the label shows on screen: fit the space, or a percentage of the size it prints. */
+export type Zoom = "fit" | number;
+
 export type Settings = {
   theme: Theme;
   density: number | null;
@@ -23,6 +26,7 @@ export type Settings = {
   autoUpdate: boolean;
   /** When releases were last checked (ms since epoch). */
   lastUpdateCheck: number | null;
+  zoom: Zoom;
 };
 
 const KEY = "labelpad.settings";
@@ -39,6 +43,7 @@ const DEFAULTS: Settings = {
   rollSizes: {},
   autoUpdate: true,
   lastUpdateCheck: null,
+  zoom: "fit",
 };
 
 export function loadSettings(): Settings {
