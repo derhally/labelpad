@@ -16,6 +16,8 @@ type Props = {
   onGestureStart: () => void;
   onEditText: (id: string) => void;
   onRendered: (canvas: HTMLCanvasElement, issues: RenderIssues) => void;
+  /** Inset of the safe-margin guide in dots; printers can't print reliably closer to the edge. */
+  margin: number;
   /** Changes each minute while the label shows the time, to redraw it. */
   clock: number;
   /** The number {count} shows in the preview. */
@@ -32,7 +34,7 @@ const STAGE_PADDING = 96;
 /** A drag-to-select rectangle, in label dots. */
 type Marquee = { x0: number; y0: number; x1: number; y1: number; additive: boolean };
 
-export function EditorStage({ elements, width, height, selectedIds, onSelect, onChange, onChangeMany, onGestureStart, onEditText, onRendered, clock, count }: Props) {
+export function EditorStage({ elements, width, height, margin, selectedIds, onSelect, onChange, onChangeMany, onGestureStart, onEditText, onRendered, clock, count }: Props) {
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -149,6 +151,9 @@ export function EditorStage({ elements, width, height, selectedIds, onSelect, on
     );
   };
 
+  // Snap to the edges, the middle, and the safe margin.
+  const guideLines = (size: number) => [0, margin, size / 2, size - margin, size].map((d) => d * zoom);
+
   return (
     <div className="stage" ref={stageRef} onPointerDown={(e) => e.target === e.currentTarget && !e.shiftKey && onSelect([])}>
       <div className="label-frame">
@@ -181,6 +186,11 @@ export function EditorStage({ elements, width, height, selectedIds, onSelect, on
               />
             ))}
           </div>
+          <div
+            className="safe-margin"
+            aria-hidden
+            style={{ left: margin * zoom, top: margin * zoom, width: (width - 2 * margin) * zoom, height: (height - 2 * margin) * zoom }}
+          />
           {marquee && (
             <div
               className="marquee"
@@ -215,8 +225,8 @@ export function EditorStage({ elements, width, height, selectedIds, onSelect, on
           isDisplaySnapDigit={false}
           snapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
           elementSnapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
-          verticalGuidelines={[0, (width * zoom) / 2, width * zoom]}
-          horizontalGuidelines={[0, (height * zoom) / 2, height * zoom]}
+          verticalGuidelines={guideLines(width)}
+          horizontalGuidelines={guideLines(height)}
           elementGuidelines={guides}
           onDragStart={(e) => {
             startGesture();
@@ -264,8 +274,8 @@ export function EditorStage({ elements, width, height, selectedIds, onSelect, on
           isDisplaySnapDigit={false}
           snapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
           elementSnapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
-          verticalGuidelines={[0, (width * zoom) / 2, width * zoom]}
-          horizontalGuidelines={[0, (height * zoom) / 2, height * zoom]}
+          verticalGuidelines={guideLines(width)}
+          horizontalGuidelines={guideLines(height)}
           elementGuidelines={guides}
           onDragGroupStart={(e) => {
             startGesture();

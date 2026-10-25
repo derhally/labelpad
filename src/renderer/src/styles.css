@@ -256,7 +256,7 @@ textarea:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accen
 
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 35%, transparent); } 50% { box-shadow: 0 0 0 12px transparent; } }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 50%, transparent); } 50% { box-shadow: 0 0 0 12px transparent; } }
 @keyframes fade { from { opacity: 0; } }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 
@@ -348,6 +348,7 @@ textarea:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accen
 .align-row .icon-button { width: 34px; height: 30px; }
 .distribute { display: grid; gap: 6px; }
 .distribute .button { justify-content: flex-start; }
+.safe-margin { position: absolute; pointer-events: none; border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); }
 .marquee { position: absolute; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; }
 .box.in-selection { outline: 1px solid var(--accent); }
 

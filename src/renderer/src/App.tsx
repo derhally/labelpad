@@ -355,6 +355,7 @@ export function App() {
           elements={doc.elements}
           width={dots.width}
           height={dots.height}
+          margin={mmStep}
           selectedIds={selectedIds}
           onSelect={setSelectedIds}
           onChangeMany={editor.updateMany}
