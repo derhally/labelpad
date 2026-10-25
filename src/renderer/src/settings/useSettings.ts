@@ -15,6 +15,8 @@ export type Settings = {
   /** Reopen the label you were working on when the app starts. */
   restoreLast: boolean;
   lastPrinter: { id: string; name: string } | null;
+  /** Names you've given printers, keyed by their Bluetooth id. */
+  printerNames: Record<string, string>;
   /** Label sizes you've confirmed for roll types, keyed by the barcode on the roll's tag. */
   rollSizes: Record<string, { widthMm: number; lengthMm: number }>;
   /** Look for a new LabelPad release once a week. */
@@ -33,6 +35,7 @@ const DEFAULTS: Settings = {
   printer: "d11",
   restoreLast: true,
   lastPrinter: null,
+  printerNames: {},
   rollSizes: {},
   autoUpdate: true,
   lastUpdateCheck: null,

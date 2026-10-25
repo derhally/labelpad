@@ -1,33 +1,47 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { ask, message, open, save } from "@tauri-apps/plugin-dialog";
+import { ask, message, save } from "@tauri-apps/plugin-dialog";
 import { FILE_EXTENSION, FILE_FILTERS, fileTitle, parseLabel, serializeLabel } from "./labelFile";
 import type { LabelDoc } from "./types";
 
-const DRAFT_KEY = "labelpad.draft";
+/** Before tabs there was one draft, kept under this key. */
+const OLD_DRAFT_KEY = "labelpad.draft";
+const draftKey = (tabId: string) => `labelpad.draft.${tabId}`;
 
-type Draft = { doc: LabelDoc; path: string | null; dirty: boolean };
+export type Draft = { doc: LabelDoc; path: string | null; dirty: boolean };
 
-/** The label you were working on last time, if it was kept. */
-export function loadDraft(): Draft | null {
+/** A label kept from last time, if there is one. Without a tab id, the draft from before tabs. */
+export function loadDraft(tabId?: string): Draft | null {
   try {
-    const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null");
+    const d = JSON.parse(localStorage.getItem(tabId ? draftKey(tabId) : OLD_DRAFT_KEY) ?? "null");
     return d && d.doc ? { doc: parseLabel(serializeLabel(d.doc)), path: d.path ?? null, dirty: !!d.dirty } : null;
   } catch {
     return null;
   }
 }
 
-type Editor = { doc: LabelDoc; reset: (doc: LabelDoc) => void };
+export function forgetDraft(tabId?: string) {
+  try {
+    localStorage.removeItem(tabId ? draftKey(tabId) : OLD_DRAFT_KEY);
+  } catch {
+    // Nothing to forget.
+  }
+}
+
+/** Read a label file from disk. */
+export async function readLabel(path: string): Promise<LabelDoc> {
+  return parseLabel(await invoke<string>("label_read", { path }));
+}
+
+type Editor = { doc: LabelDoc };
 
 /**
- * New, open, save and save-as for the editor's document, with an unsaved
- * changes prompt and the file name in the window title.
+ * Save and save-as for one tab's label, the unsaved changes prompt, and a
+ * draft so the next start can pick up where you left off.
  */
-export function useLabelFile(editor: Editor, opts: { initialPath: string | null; initialDirty: boolean }) {
+export function useLabelFile(editor: Editor, opts: { tabId: string; initialPath: string | null; initialDirty: boolean }) {
   const { doc } = editor;
+  const { tabId } = opts;
   const [path, setPath] = useState<string | null>(opts.initialPath);
   // The document as last saved or opened. Undo returns the same object, so
   // undoing back to it clears the unsaved mark.
@@ -39,24 +53,17 @@ export function useLabelFile(editor: Editor, opts: { initialPath: string | null;
   state.current = { doc, path, dirty };
 
   useEffect(() => {
-    const text = `${dirty ? "• " : ""}${title} — LabelPad`;
-    document.title = text;
-    getCurrentWindow().setTitle(text).catch(() => undefined);
-  }, [title, dirty]);
-
-  // Keep the current label so the next start can pick up where you left off.
-  useEffect(() => {
     const id = setTimeout(() => {
       try {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify({ doc, path, dirty } satisfies Draft));
+        localStorage.setItem(draftKey(tabId), JSON.stringify({ doc, path, dirty } satisfies Draft));
       } catch {
         // Large images can exceed storage; the draft just isn't kept.
       }
     }, 400);
     return () => clearTimeout(id);
-  }, [doc, path, dirty]);
+  }, [doc, path, dirty, tabId]);
 
-  /** True when it's fine to replace the current label. */
+  /** True when it's fine to throw this label's changes away. */
   const confirmDiscard = useCallback(async () => {
     if (!state.current.dirty) return true;
     const name = state.current.path ? fileTitle(state.current.path) : "this label";
@@ -89,58 +96,5 @@ export function useLabelFile(editor: Editor, opts: { initialPath: string | null;
 
   const saveFile = useCallback(() => (state.current.path ? write(state.current.path) : saveAs()), [write, saveAs]);
 
-  /** Replace the label with a new, untitled one. False if you chose to keep editing. */
-  const newFile = useCallback(
-    async (fresh: LabelDoc) => {
-      if (!(await confirmDiscard())) return false;
-      editor.reset(fresh);
-      setPath(null);
-      setSaved(fresh);
-      return true;
-    },
-    [confirmDiscard, editor],
-  );
-
-  /** Open a label file, asking first if the current one has unsaved changes. */
-  const openPath = useCallback(
-    async (chosen: string) => {
-      if (!(await confirmDiscard())) return;
-      try {
-        const loaded = parseLabel(await invoke<string>("label_read", { path: chosen }));
-        editor.reset(loaded);
-        setPath(chosen);
-        setSaved(loaded);
-      } catch (e) {
-        await message(e instanceof Error ? e.message : String(e), { title: "Couldn't open label", kind: "error" });
-      }
-    },
-    [confirmDiscard, editor],
-  );
-
-  const openFile = useCallback(async () => {
-    const chosen = await open({ filters: FILE_FILTERS, multiple: false, directory: false });
-    if (typeof chosen === "string") await openPath(chosen);
-  }, [openPath]);
-
-  // Labels opened from the file manager: at startup, and (on macOS) while running.
-  useEffect(() => {
-    const take = () =>
-      invoke<string[]>("opened_files_take")
-        .then((paths) => (paths.length ? openPath(paths[paths.length - 1]) : undefined))
-        .catch(() => undefined);
-    void take();
-    const off = listen("open-files", take);
-    return () => void off.then((f) => f());
-  }, [openPath]);
-
-  // Ask before closing the window with unsaved changes.
-  useEffect(() => {
-    const win = getCurrentWindow();
-    const off = win.onCloseRequested(async (e) => {
-      if (!(await confirmDiscard())) e.preventDefault();
-    });
-    return () => void off.then((f) => f());
-  }, [confirmDiscard]);
-
-  return { path, title, dirty, newFile, openFile, saveFile, saveAs };
+  return { path, title, dirty, saveFile, saveAs, confirmDiscard };
 }
