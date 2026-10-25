@@ -296,6 +296,47 @@ pub fn run_mcp_stdio() -> i32 {
     mcp::run_stdio()
 }
 
+/// The window-state plugin puts the window back where it was last time, but only checks that
+/// one corner lands on a screen. After a monitor is unplugged or the resolution drops, that can
+/// leave the title bar off-screen or the window bigger than the display. Pull it back onto the
+/// screen under its title bar (or the primary screen) and shrink it to fit.
+fn keep_on_screen(window: &tauri::WebviewWindow) -> tauri::Result<()> {
+    if window.is_maximized()? || window.is_fullscreen()? {
+        return Ok(());
+    }
+    let pos = window.outer_position()?;
+    let size = window.outer_size()?;
+    let monitors = window.available_monitors()?;
+    // A point on the title bar, which is what someone needs to see to drag the window.
+    let (grab_x, grab_y) = (pos.x + size.width as i32 / 2, pos.y + 16);
+    let area = monitors
+        .iter()
+        .map(|m| *m.work_area())
+        .find(|a| {
+            grab_x >= a.position.x
+                && grab_x < a.position.x + a.size.width as i32
+                && grab_y >= a.position.y
+                && grab_y < a.position.y + a.size.height as i32
+        })
+        .or_else(|| window.primary_monitor().ok().flatten().map(|m| *m.work_area()))
+        .or_else(|| monitors.first().map(|m| *m.work_area()));
+    let Some(area) = area else { return Ok(()) };
+
+    let width = size.width.min(area.size.width);
+    let height = size.height.min(area.size.height);
+    let max_x = area.position.x + (area.size.width - width) as i32;
+    let max_y = area.position.y + (area.size.height - height) as i32;
+    let x = pos.x.clamp(area.position.x, max_x);
+    let y = pos.y.clamp(area.position.y, max_y);
+    if (width, height) != (size.width, size.height) {
+        window.set_size(tauri::PhysicalSize::new(width, height))?;
+    }
+    if (x, y) != (pos.x, pos.y) {
+        window.set_position(tauri::PhysicalPosition::new(x, y))?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
@@ -304,6 +345,22 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        // Remember the window's size, position and maximized state between runs. Visibility is
+        // left out so a saved hidden state can never start the app with no window.
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(tauri_plugin_window_state::StateFlags::all() - tauri_plugin_window_state::StateFlags::VISIBLE)
+                .build(),
+        )
+        .setup(|app| {
+            // The plugin has already restored the saved state by the time setup runs.
+            if let Some(window) = app.get_webview_window("main") {
+                if let Err(e) = keep_on_screen(&window) {
+                    log::warn!("could not keep the window on screen: {e}");
+                }
+            }
+            Ok(())
+        })
         .manage(Printer::default())
         .manage(Arc::new(mcp::Bridge::default()))
         // Windows and Linux pass a double-clicked file as an argument.
