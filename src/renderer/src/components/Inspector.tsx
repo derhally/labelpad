@@ -1,8 +1,9 @@
 import {
   AlignCenter, AlignEndHorizontal, AlignLeft, AlignRight, AlignStartHorizontal, AlignCenterHorizontal, ArrowDownToLine, ArrowUpToLine, Bold, ChevronDown, ChevronUp, Circle, Copy,
-  ImageUp, Italic, LayoutGrid, Minus, Square, Trash2, TriangleAlert,
+  ImageUp, Italic, LayoutGrid, Minus, Square, Trash2, TriangleAlert, Underline,
 } from "lucide-react";
 import { ICONS } from "../editor/icons";
+import { fitFontSize } from "../editor/render";
 import { DATE_PRESETS, dateTimeText, formatDate, formatTime } from "../editor/dateFormat";
 import { BARCODE_FORMATS, type LabelElement, type TextStyle } from "../editor/types";
 import { useState } from "react";
@@ -10,7 +11,7 @@ import { FontBrowser } from "./FontBrowser";
 import { FontPicker } from "./FontPicker";
 import { AlignControls } from "./AlignControls";
 import { spell } from "../locale";
-import { Field, NumberInput, Segmented, Toggle } from "./fields";
+import { DetentSlider, Field, NumberInput, Segmented, Toggle } from "./fields";
 import { TYPE_META } from "./Toolbar";
 
 type Update = (patch: Partial<LabelElement>, opts?: { transient?: boolean }) => void;
@@ -40,6 +41,7 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
   const dots = (mm: number) => mm * label.dotsPerMm;
   // Slider ranges in dots are set for 8 dots per mm and grow with the resolution.
   const k = label.dotsPerMm / 8;
+  const mmStops = (mms: number[]) => mms.map((v) => Math.round(dots(v)));
   const now = new Date();
 
   return (
@@ -83,7 +85,7 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
             <textarea id="inspector-text" rows={3} value={el.text} {...typing} onChange={(e) => type({ text: e.target.value })} />
           </Field>
           <CounterHint onInsert={() => onChange({ text: `${el.text}{count}` })} />
-          <TextStyleFields el={el} previewText={el.text} onChange={onChange} onCheckpoint={onCheckpoint} maxFontSize={Math.round(96 * k)} />
+          <TextStyleFields el={el} previewText={el.text} onChange={onChange} onCheckpoint={onCheckpoint} dotsPerMm={label.dotsPerMm} box={el} />
         </>
       )}
 
@@ -152,7 +154,7 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
           <p className="muted hint">
             Prints as: <strong>{dateTimeText(el, now)}</strong>
           </p>
-          <TextStyleFields el={el} previewText={dateTimeText(el, now)} onChange={onChange} onCheckpoint={onCheckpoint} maxFontSize={Math.round(96 * k)} />
+          <TextStyleFields el={el} previewText={dateTimeText(el, now)} onChange={onChange} onCheckpoint={onCheckpoint} dotsPerMm={label.dotsPerMm} box={el} />
         </>
       )}
 
@@ -172,7 +174,7 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
             />
           </Field>
           <Field label="Darkness">
-            <input type="range" min={20} max={235} value={el.threshold} onPointerDown={onCheckpoint} onChange={(e) => type({ threshold: Number(e.target.value) })} />
+            <DetentSlider min={20} max={235} value={el.threshold} stops={[128]} onStart={onCheckpoint} onChange={(threshold) => type({ threshold })} />
           </Field>
           <Toggle checked={el.invert} onChange={(invert) => onChange({ invert })}>
             Invert
@@ -233,7 +235,7 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
             <span className="muted">Change</span>
           </button>
           <Field label={`Line weight · ${el.strokeWidth}`}>
-            <input type="range" min={1} max={4} step={0.25} value={el.strokeWidth} onPointerDown={onCheckpoint} onChange={(e) => type({ strokeWidth: Number(e.target.value) })} />
+            <DetentSlider min={1} max={4} step={0.25} value={el.strokeWidth} stops={[1, 1.5, 2, 3]} onStart={onCheckpoint} onChange={(strokeWidth) => type({ strokeWidth })} />
           </Field>
         </>
       )}
@@ -252,7 +254,14 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
             />
           </Field>
           <Field label={`Line weight · ${el.strokeWidth} dots`}>
-            <input type="range" min={1} max={Math.round(16 * k)} value={el.strokeWidth} onPointerDown={onCheckpoint} onChange={(e) => type({ strokeWidth: Number(e.target.value) })} />
+            <DetentSlider
+              min={1}
+              max={Math.round(16 * k)}
+              value={el.strokeWidth}
+              stops={mmStops([0.25, 0.5, 1, 1.5])}
+              onStart={onCheckpoint}
+              onChange={(strokeWidth) => type({ strokeWidth })}
+            />
           </Field>
           {el.shape !== "line" && (
             <Toggle checked={el.filled} onChange={(filled) => onChange({ filled })}>
@@ -261,7 +270,14 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
           )}
           {el.shape === "rect" && (
             <Field label={`Corner radius · ${el.cornerRadius} dots`}>
-              <input type="range" min={0} max={Math.round(40 * k)} value={el.cornerRadius} onPointerDown={onCheckpoint} onChange={(e) => type({ cornerRadius: Number(e.target.value) })} />
+              <DetentSlider
+                min={0}
+                max={Math.round(40 * k)}
+                value={el.cornerRadius}
+                stops={[0, ...mmStops([1, 2, 3, 4])]}
+                onStart={onCheckpoint}
+                onChange={(cornerRadius) => type({ cornerRadius })}
+              />
             </Field>
           )}
         </>
@@ -289,15 +305,19 @@ function TextStyleFields({
   previewText,
   onChange,
   onCheckpoint,
-  maxFontSize,
+  dotsPerMm,
+  box,
 }: {
   el: TextStyle;
   previewText: string;
   onChange: Update;
   onCheckpoint: () => void;
-  maxFontSize: number;
+  dotsPerMm: number;
+  /** The text box, to work out the size "Fit text to box" picks. */
+  box: { width: number; height: number };
 }) {
   const [browsing, setBrowsing] = useState(false);
+  const size = Math.round(el.autoFit ? fitFontSize(el, previewText, box.width, box.height) : el.fontSize);
   return (
     <>
       <div className="field">
@@ -328,12 +348,16 @@ function TextStyleFields({
             { value: "right", label: <AlignRight size={16} />, title: "Align right" },
           ]}
         />
-        <div className="segmented">
-          <button className={el.bold ? "active" : ""} title="Bold" onClick={() => onChange({ bold: !el.bold })}>
+        {/* Independent on/off buttons, so each lights up on its own rather than with a sliding highlight. */}
+        <div className="segmented toggles">
+          <button className={el.bold ? "active" : ""} title="Bold" aria-pressed={el.bold} onClick={() => onChange({ bold: !el.bold })}>
             <Bold size={16} />
           </button>
-          <button className={el.italic ? "active" : ""} title="Italic" onClick={() => onChange({ italic: !el.italic })}>
+          <button className={el.italic ? "active" : ""} title="Italic" aria-pressed={el.italic} onClick={() => onChange({ italic: !el.italic })}>
             <Italic size={16} />
+          </button>
+          <button className={el.underline ? "active" : ""} title="Underline" aria-pressed={el.underline} onClick={() => onChange({ underline: !el.underline })}>
+            <Underline size={16} />
           </button>
         </div>
       </div>
@@ -346,14 +370,21 @@ function TextStyleFields({
           { value: "bottom", label: <><AlignEndHorizontal size={16} /> Bottom</>, title: "Align to bottom" },
         ]}
       />
-      <Toggle checked={el.autoFit} onChange={(autoFit) => onChange({ autoFit })}>
+      {/* The size always shows; moving it turns off fitting, which starts from the fitted size. */}
+      <Field label={`Size · ${(size / dotsPerMm).toFixed(1)} mm${el.autoFit ? ", fits the box" : ""}`}>
+        <DetentSlider
+          min={6}
+          max={Math.max(Math.round(12 * dotsPerMm), size)}
+          value={size}
+          // Common text heights: 2, 3, 4, 5, 6, 8 and 10 mm.
+          stops={[2, 3, 4, 5, 6, 8, 10].map((mm) => Math.round(mm * dotsPerMm))}
+          onStart={onCheckpoint}
+          onChange={(fontSize) => onChange({ fontSize, autoFit: false }, { transient: true })}
+        />
+      </Field>
+      <Toggle checked={el.autoFit} onChange={(autoFit) => onChange(autoFit ? { autoFit } : { autoFit, fontSize: size })}>
         Fit text to box
       </Toggle>
-      {!el.autoFit && (
-        <Field label={`Size · ${el.fontSize} dots`}>
-          <input type="range" min={6} max={maxFontSize} value={el.fontSize} onPointerDown={onCheckpoint} onChange={(e) => onChange({ fontSize: Number(e.target.value) }, { transient: true })} />
-        </Field>
-      )}
       <Toggle checked={el.invert} onChange={(invert) => onChange({ invert })}>
         White on black
       </Toggle>

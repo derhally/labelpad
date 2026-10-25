@@ -52,7 +52,7 @@ export function ConnectButton({ status, finding, lastPrinter, lastLabel, onConne
           title={lastPrinter ? `Connect to ${lastPrinter.name}` : "Choose a printer to connect to"}
         >
           {busy ? <Loader2 size={16} className="spin" /> : <Bluetooth size={16} />}
-          {finding ? `Looking for ${lastLabel}…` : lastPrinter ? `Connect ${lastLabel}` : "Connect printer"}
+          <span>{finding ? `Looking for ${lastLabel}…` : lastPrinter ? `Connect ${lastLabel}` : "Connect printer"}</span>
         </button>
       )}
       <button

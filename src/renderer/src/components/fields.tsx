@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -48,8 +48,24 @@ export function Segmented<T extends string | number>({
   options: { value: T; label: ReactNode; title?: string }[];
   onChange: (value: T) => void;
 }) {
+  // One highlight slides to the chosen option instead of each button lighting up.
+  const ref = useRef<HTMLDivElement>(null);
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
+  const index = options.findIndex((o) => o.value === value);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const button = ref.current?.querySelectorAll<HTMLButtonElement>(":scope > button")[index];
+      setPill(button ? { left: button.offsetLeft, width: button.offsetWidth } : null);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (ref.current) ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, [index, options.length]);
+
   return (
-    <div className="segmented" role="radiogroup">
+    <div className="segmented" role="radiogroup" ref={ref}>
+      {pill && <span className="segmented-pill" aria-hidden style={{ transform: `translateX(${pill.left}px)`, width: pill.width }} />}
       {options.map((o) => (
         <button
           key={String(o.value)}
@@ -63,6 +79,38 @@ export function Segmented<T extends string | number>({
           {o.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+type SliderProps = {
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  /** Values the slider settles on when you let go close to them. */
+  stops: number[];
+  onChange: (value: number) => void;
+  onStart?: () => void;
+};
+
+/**
+ * A range slider with stops: while dragging, values near a stop snap to it,
+ * and the stops are marked under the track.
+ */
+export function DetentSlider({ value, min, max, step = 1, stops, onChange, onStart }: SliderProps) {
+  const inRange = stops.filter((s) => s >= min && s <= max);
+  const pull = (max - min) * 0.025;
+  const snap = (v: number) => inRange.find((s) => Math.abs(s - v) <= pull) ?? v;
+  const at = (v: number) => `${((v - min) / (max - min || 1)) * 100}%`;
+  return (
+    <div className="detent-slider">
+      <input type="range" min={min} max={max} step={step} value={value} onPointerDown={onStart} onChange={(e) => onChange(snap(Number(e.target.value)))} />
+      <div className="detents" aria-hidden>
+        {inRange.map((s) => (
+          <span key={s} className={s === value ? "on" : ""} style={{ left: at(s) }} />
+        ))}
+      </div>
     </div>
   );
 }

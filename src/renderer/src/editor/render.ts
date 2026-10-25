@@ -152,7 +152,18 @@ function renderText(el: TextStyle, text: string, w: number, h: number): Layer {
   const block = lineHeight * lines.length;
   const top =
     el.valign === "top" ? pad + lineHeight / 2 : el.valign === "bottom" ? h - pad - block + lineHeight / 2 : h / 2 - (lineHeight * (lines.length - 1)) / 2;
-  lines.forEach((line, i) => ctx.fillText(line, x, top + i * lineHeight));
+  lines.forEach((line, i) => {
+    const y = top + i * lineHeight;
+    ctx.fillText(line, x, y);
+    if (el.underline && line.trim()) {
+      // A line just under the baseline, as wide as the text.
+      const m = ctx.measureText(line);
+      const thickness = Math.max(1, Math.round(size / 14));
+      const baseline = y - m.alphabeticBaseline;
+      const left = el.align === "left" ? x : el.align === "right" ? x - m.width : x - m.width / 2;
+      ctx.fillRect(left, Math.round(baseline + thickness * 1.5), m.width, thickness);
+    }
+  });
 
   toOneBit(ctx, w, h);
   return canvas;
