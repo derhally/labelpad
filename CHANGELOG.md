@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/derhally/labelpad/compare/v0.1.0...v0.2.0) (2026-10-25)
+
+
+### Features
+
+* check GitHub releases weekly and offer to update ([#11](https://github.com/derhally/labelpad/issues/11)) ([682d17c](https://github.com/derhally/labelpad/commit/682d17cb70534bd41e7fb9be6ebae07f173710a0))
+
 ## 0.1.0 (2026-10-24)
 
 
