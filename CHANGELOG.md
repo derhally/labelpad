@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/derhally/labelpad/compare/v0.2.0...v0.3.0) (2026-10-25)
+
+
+### Features
+
+* show a 1 mm safe-margin guide on the label ([#15](https://github.com/derhally/labelpad/issues/15)) ([307d652](https://github.com/derhally/labelpad/commit/307d65238e99cc4b8269257bc43f89c13a227dc6))
+* support the Niimbot M3, drop or paste images and text, and open .labelpad files ([#13](https://github.com/derhally/labelpad/issues/13)) ([9ecc5aa](https://github.com/derhally/labelpad/commit/9ecc5aae5113a3df1606de5e5b5165c55516d212))
+
 ## [0.2.0](https://github.com/derhally/labelpad/compare/v0.1.0...v0.2.0) (2026-10-25)
 
 
