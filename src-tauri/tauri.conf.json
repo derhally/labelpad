@@ -35,7 +35,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": true,
+    "fileAssociations": [
+      {
+        "ext": ["labelpad"],
+        "name": "LabelPad label",
+        "description": "LabelPad label",
+        "role": "Editor",
+        "mimeType": "application/x-labelpad"
+      }
+    ]
   },
   "plugins": {
     "updater": {

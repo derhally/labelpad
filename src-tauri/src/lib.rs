@@ -267,6 +267,21 @@ async fn template_delete(app: AppHandle, id: String) -> Result<(), String> {
     std::fs::remove_file(template_path(&app, &id)?).map_err(|e| format!("Couldn't delete the template: {e}"))
 }
 
+/// Label files the app was asked to open (double-clicked, or "Open with"),
+/// waiting for the UI to take them.
+#[derive(Default)]
+struct OpenedFiles(std::sync::Mutex<Vec<String>>);
+
+fn is_label_file(path: &std::path::Path) -> bool {
+    path.is_file() && path.extension().is_some_and(|e| e.eq_ignore_ascii_case("labelpad") || e.eq_ignore_ascii_case("niimbot"))
+}
+
+/// Take the label files waiting to be opened. Later ones arrive as `open-files` events.
+#[tauri::command]
+fn opened_files_take(opened: State<'_, OpenedFiles>) -> Vec<String> {
+    std::mem::take(&mut *opened.0.lock().unwrap())
+}
+
 /// Whether this install can replace itself. On Linux only the AppImage can;
 /// .deb and .rpm installs are updated by downloading the new package.
 #[tauri::command]
@@ -283,6 +298,10 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Printer::default())
+        // Windows and Linux pass a double-clicked file as an argument.
+        .manage(OpenedFiles(std::sync::Mutex::new(
+            std::env::args_os().skip(1).map(std::path::PathBuf::from).filter(|p| is_label_file(p)).map(|p| p.to_string_lossy().into_owned()).collect(),
+        )))
         .invoke_handler(tauri::generate_handler![
             scan_start,
             scan_stop,
@@ -295,9 +314,26 @@ pub fn run() {
             templates_list,
             template_save,
             template_delete,
-            update_supported
+            update_supported,
+            opened_files_take
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running LabelPad");
+        .build(tauri::generate_context!())
+        .expect("error while running LabelPad")
+        .run(|_app, _event| {
+            // macOS hands files over as an event instead, also while the app is running.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = _event {
+                let paths: Vec<String> = urls
+                    .iter()
+                    .filter_map(|u| u.to_file_path().ok())
+                    .filter(|p| is_label_file(p))
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .collect();
+                if !paths.is_empty() {
+                    _app.state::<OpenedFiles>().0.lock().unwrap().extend(paths);
+                    let _ = _app.emit("open-files", ());
+                }
+            }
+        });
 }
 
