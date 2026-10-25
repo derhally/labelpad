@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { message } from "@tauri-apps/plugin-dialog";
 import { AlignCenter, AlignVerticalJustifyCenter, ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, Check, Copy, LayoutTemplate, Redo2, Save, Trash2, Undo2 } from "lucide-react";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
@@ -18,7 +18,7 @@ import { saveTemplate } from "../editor/templates";
 import { makeElement } from "../editor/defaults";
 import { importImage, pickImageFile } from "../editor/importImage";
 import { renderLabel, type RenderIssues } from "../editor/render";
-import { newId, type ElementType, type LabelElement } from "../editor/types";
+import { newId, type ElementType, type LabelDoc, type LabelElement } from "../editor/types";
 import { useDocument } from "../editor/useDocument";
 import { DEFAULT_COUNTER, hasCounter } from "../editor/variables";
 import { useLabelFile, type Draft } from "../editor/useLabelFile";
@@ -32,10 +32,25 @@ type IconTarget = { mode: "add" } | { mode: "replace"; id: string };
 /** What the tab strip shows for a label. */
 export type TabMeta = { title: string; path: string | null; dirty: boolean };
 
-/** What the window needs from a tab: closing it, and handing it dropped content. */
+/** What the window needs from a tab: closing it, handing it dropped content, and the agent tools. */
 export type EditorHandle = {
   confirmDiscard: () => Promise<boolean>;
   addContent: (data: DataTransfer) => Promise<void>;
+  agent: AgentHandle;
+};
+
+/**
+ * The label as AI agents drive it (see mcp/). Changes apply at once and are
+ * undoable like any other edit; errors are thrown rather than shown in dialogs.
+ */
+export type AgentHandle = {
+  doc: () => LabelDoc;
+  change: (edit: (doc: LabelDoc) => LabelDoc) => LabelDoc;
+  undo: () => void;
+  redo: () => void;
+  file: () => TabMeta;
+  saveTo: (path: string) => Promise<void>;
+  print: (opts: { copies: number; density: number }) => Promise<{ pages: number }>;
 };
 
 /** Places outside the tab where the active label puts its controls. */
@@ -116,17 +131,17 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
   // Render again at print time so dates and times are current. Numbered
   // labels render once per number and print as separate pages.
   // A label laid out for another printer is converted for the connected one.
-  const print = useCallback(async () => {
-    if (status !== "connected") return false;
-    const now = new Date();
-    const job = otherPrinter ? convertDoc(doc, otherPrinter) : doc;
-    const size = canvasSize(job.size, profileFor(job));
-    const render = async (count: number) => {
-      const canvas = document.createElement("canvas");
-      await renderLabel(canvas, size.width, size.height, job.elements, now, { count });
-      return canvas;
-    };
-    try {
+  const printLabel = useCallback(
+    async ({ copies, density }: { copies: number; density: number }) => {
+      if (status !== "connected") throw new Error(status === "printing" ? "The printer is busy printing." : "No printer is connected.");
+      const now = new Date();
+      const job = otherPrinter ? convertDoc(doc, otherPrinter) : doc;
+      const size = canvasSize(job.size, profileFor(job));
+      const render = async (count: number) => {
+        const canvas = document.createElement("canvas");
+        await renderLabel(canvas, size.width, size.height, job.elements, now, { count });
+        return canvas;
+      };
       if (numbered) {
         const pages = await Promise.all(Array.from({ length: copies }, (_, i) => render(counter.start + i * counter.step)));
         await printer.print(pages, { density, copies: 1 });
@@ -135,12 +150,13 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
       } else {
         await printer.print([await render(counter.start)], { density, copies });
       }
-      return true;
-    } catch {
-      // The print panel shows the error.
-      return false;
-    }
-  }, [printer, editor, status, density, copies, doc, otherPrinter, numbered, counter]);
+      return { pages: copies };
+    },
+    [printer, editor, status, doc, otherPrinter, numbered, counter],
+  );
+
+  // The print panel shows any error.
+  const print = useCallback(() => printLabel({ copies, density }).then(() => true, () => false), [printLabel, copies, density]);
 
   const clock = useMinuteClock(doc.elements.some((e) => e.type === "datetime"));
 
@@ -185,10 +201,28 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
   const addContentRef = useRef(addContent);
   addContentRef.current = addContent;
 
+  // The agent's view of this label always reads the latest render.
+  const live = useRef({ editor, file, printLabel });
+  live.current = { editor, file, printLabel };
+  const [agent] = useState<AgentHandle>(() => ({
+    doc: () => live.current.editor.doc,
+    // flushSync renders the change before returning, so the next call sees it.
+    change: (edit) => {
+      const next = edit(live.current.editor.doc);
+      flushSync(() => live.current.editor.replace(next));
+      return next;
+    },
+    undo: () => flushSync(() => live.current.editor.undo()),
+    redo: () => flushSync(() => live.current.editor.redo()),
+    file: () => ({ title: live.current.file.title, path: live.current.file.path, dirty: live.current.file.dirty }),
+    saveTo: (path) => live.current.file.saveTo(path),
+    print: (opts) => live.current.printLabel(opts),
+  }));
+
   useEffect(() => {
-    onHandle(tabId, { confirmDiscard: file.confirmDiscard, addContent: (data) => addContentRef.current(data) });
+    onHandle(tabId, { confirmDiscard: file.confirmDiscard, addContent: (data) => addContentRef.current(data), agent });
     return () => onHandle(tabId, null);
-  }, [onHandle, tabId, file.confirmDiscard]);
+  }, [onHandle, tabId, file.confirmDiscard, agent]);
 
   // Paste an image or text onto the active label, unless a field has focus.
   useEffect(() => {

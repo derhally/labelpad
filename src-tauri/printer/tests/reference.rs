@@ -73,7 +73,7 @@ fn image_data_matches() {
         assert_eq!(encoded.rows as u64, img["rows"].as_u64().unwrap(), "{name} rows");
         assert_eq!(encoded.cols as u64, img["cols"].as_u64().unwrap(), "{name} cols");
 
-        let ours: Vec<String> = gen::write_image_data(&encoded, img["printhead_pixels"].as_u64().unwrap() as u16)
+        let ours: Vec<String> = gen::write_image_data(&encoded, img["printhead_pixels"].as_u64().unwrap() as u16, false)
             .iter()
             .map(|p| hex(&p.to_bytes()))
             .collect();

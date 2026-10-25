@@ -125,8 +125,24 @@ pub fn print_bitmap_row_indexed(pos: u16, repeats: u8, row: &[u8], printhead_pix
     Packet::new(req::PRINT_BITMAP_ROW_INDEXED, d)
 }
 
-/// The bitmap packets for one page.
-pub fn write_image_data(image: &EncodedImage, printhead_pixels: u16) -> Vec<Packet> {
+/// The bitmap packets for one page. With `one_row_each`, every row is sent as
+/// its own bitmap row and blank rows as white ones: the M3 prints each packet
+/// once whatever its repeat count, and doesn't feed paper for empty-row packets.
+pub fn write_image_data(image: &EncodedImage, printhead_pixels: u16, one_row_each: bool) -> Vec<Packet> {
+    if one_row_each {
+        let white = vec![0u8; image.cols as usize / 8];
+        return image
+            .rows_data
+            .iter()
+            .flat_map(|r| {
+                let row = match &r.data {
+                    RowData::Void => &white,
+                    RowData::Pixels { black, .. } => black,
+                };
+                (0..r.repeat as u16).map(move |i| print_bitmap_row(r.row_number + i, 1, row, printhead_pixels))
+            })
+            .collect();
+    }
     image
         .rows_data
         .iter()

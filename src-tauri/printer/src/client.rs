@@ -332,7 +332,7 @@ impl Client {
                 PrintTaskName::D110MV4 => vec![gen::set_page_size_13b(image.rows, image.cols, opts.copies)],
                 _ => vec![gen::print_clear(), gen::page_start(), gen::set_page_size_4b(image.rows, image.cols), gen::set_print_quantity(opts.copies)],
             };
-            packets.extend(gen::write_image_data(&image, printhead));
+            packets.extend(gen::write_image_data(&image, printhead, task == PrintTaskName::D110MV4));
             packets.push(gen::page_end());
             pages.push(packets);
         }
