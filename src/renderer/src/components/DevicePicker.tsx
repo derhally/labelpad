@@ -29,7 +29,7 @@ export function DevicePicker({ open, printers, lastPrinter, onPick, onClose }: P
 
   return (
     <div className="backdrop" onClick={onClose}>
-      <div className="dialog" role="dialog" aria-labelledby="picker-title" onClick={(e) => e.stopPropagation()}>
+      <div className="dialog picker" role="dialog" aria-labelledby="picker-title" onClick={(e) => e.stopPropagation()}>
         <header className="dialog-header">
           <div>
             <h2 id="picker-title">Connect a printer</h2>
