@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, X } from "lucide-react";
+import { FolderOpen, Plus, Trash2, X } from "lucide-react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { renderLabel } from "../editor/render";
 import { builtInTemplates, deleteTemplate, userTemplates, type Template } from "../editor/templates";
@@ -11,11 +11,13 @@ type Props = {
   /** A blank label for the current printer; templates are laid out for the same printer. */
   blank: LabelDoc;
   onPick: (doc: LabelDoc) => void;
+  /** Open a label file instead. */
+  onOpen: () => void;
   onClose: () => void;
 };
 
 /** Start a new label: blank, from a built-in template, or from one you saved. */
-export function TemplateGallery({ open, blank, onPick, onClose }: Props) {
+export function TemplateGallery({ open, blank, onPick, onOpen, onClose }: Props) {
   const [mine, setMine] = useState<Template[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [builtIn] = useState(builtInTemplates);
@@ -48,7 +50,7 @@ export function TemplateGallery({ open, blank, onPick, onClose }: Props) {
         <header className="dialog-header">
           <div>
             <h2 id="gallery-title">New label</h2>
-            <p className="muted">Start blank or from a template.</p>
+            <p className="muted">Start blank or from a template, or open a label you saved.</p>
           </div>
           <button className="icon-button" onClick={onClose} aria-label="Close">
             <X size={18} />
@@ -65,6 +67,13 @@ export function TemplateGallery({ open, blank, onPick, onClose }: Props) {
               <span className="muted template-size">
                 {blank.size.widthMm} × {blank.size.lengthMm} mm
               </span>
+            </button>
+            <button className="template-card" onClick={onOpen}>
+              <span className="template-thumb blank">
+                <FolderOpen size={22} />
+              </span>
+              <span className="template-name">Open file…</span>
+              <span className="muted template-size">A saved .labelpad label</span>
             </button>
             {forPrinter(builtIn).map((t) => (
               <TemplateCard key={t.id} template={t} onPick={onPick} />

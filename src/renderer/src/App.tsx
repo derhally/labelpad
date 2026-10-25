@@ -356,7 +356,16 @@ export function App() {
           if (await printer.connect(p)) updateSettings({ lastPrinter: { id: p.id, name: p.name } });
         }}
       />
-      <TemplateGallery open={galleryOpen} blank={blankDoc} onPick={startFrom} onClose={() => setGalleryOpen(false)} />
+      <TemplateGallery
+        open={galleryOpen}
+        blank={blankDoc}
+        onPick={startFrom}
+        onOpen={() => {
+          setGalleryOpen(false);
+          void openFile();
+        }}
+        onClose={() => setGalleryOpen(false)}
+      />
       <SettingsDialog
         open={settingsOpen}
         settings={settings}
