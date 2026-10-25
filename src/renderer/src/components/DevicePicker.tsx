@@ -7,6 +7,8 @@ type Props = {
   printers: FoundPrinter[];
   /** The printer connected last time; it stays pinned at the top, found or not. */
   lastPrinter?: { id: string; name: string };
+  /** Names you've given printers. */
+  names: Record<string, string>;
   onPick: (printer: FoundPrinter) => void;
   onClose: () => void;
 };
@@ -15,7 +17,7 @@ type Props = {
  * Lists printers as the Bluetooth scan finds them. Rows keep the order they
  * appeared in and the list has a fixed height, so nothing moves under the pointer.
  */
-export function DevicePicker({ open, printers, lastPrinter, onPick, onClose }: Props) {
+export function DevicePicker({ open, printers, lastPrinter, names, onPick, onClose }: Props) {
   const order = useRef<string[]>([]);
   useEffect(() => {
     if (!open) order.current = [];
@@ -44,7 +46,7 @@ export function DevicePicker({ open, printers, lastPrinter, onPick, onClose }: P
           <button className="device pinned" disabled={!last} onClick={() => last && onPick(last)}>
             <Printer size={18} />
             <span>
-              {last?.name ?? lastPrinter.name}
+              <DeviceName id={lastPrinter.id} name={last?.name ?? lastPrinter.name} names={names} />
               <em className="device-tag">Last used</em>
             </span>
             {last ? (
@@ -61,7 +63,9 @@ export function DevicePicker({ open, printers, lastPrinter, onPick, onClose }: P
           {others.map((d) => (
             <button key={d.id} className="device" onClick={() => onPick(d)}>
               <Printer size={18} />
-              <span>{d.name}</span>
+              <span>
+                <DeviceName id={d.id} name={d.name} names={names} />
+              </span>
               <span className="device-action">Connect</span>
             </button>
           ))}
@@ -74,5 +78,16 @@ export function DevicePicker({ open, printers, lastPrinter, onPick, onClose }: P
         </div>
       </div>
     </div>
+  );
+}
+
+/** Your name for a printer, with its own name beside it. */
+function DeviceName({ id, name, names }: { id: string; name: string; names: Record<string, string> }) {
+  return names[id] ? (
+    <>
+      {names[id]} <small className="muted device-model">{name}</small>
+    </>
+  ) : (
+    <>{name}</>
   );
 }

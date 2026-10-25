@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bluetooth, ChevronDown, Loader2, Repeat, Unplug } from "lucide-react";
+import { Bluetooth, ChevronDown, Loader2, Pencil, Repeat, Unplug } from "lucide-react";
 import type { PrinterStatus } from "../printer/usePrinter";
 
 type Props = {
@@ -7,9 +7,12 @@ type Props = {
   /** Set while quick connect looks for the last printer. */
   finding: boolean;
   lastPrinter?: { id: string; name: string };
+  /** What to call the last printer: your name for it, or its model. */
+  lastLabel?: string;
   onConnect: () => void;
   onDisconnect: () => void;
   onSwitch: () => void;
+  onRename: () => void;
 };
 
 /** "M3-I724060085" → "M3". */
@@ -21,7 +24,7 @@ export function shortName(name: string): string {
  * Connect (to the last printer, or pick one if there's none yet) or
  * disconnect, with "Switch printer" in a menu beside it.
  */
-export function ConnectButton({ status, finding, lastPrinter, onConnect, onDisconnect, onSwitch }: Props) {
+export function ConnectButton({ status, finding, lastPrinter, lastLabel, onConnect, onDisconnect, onSwitch, onRename }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const connected = status === "connected" || status === "printing";
@@ -49,7 +52,7 @@ export function ConnectButton({ status, finding, lastPrinter, onConnect, onDisco
           title={lastPrinter ? `Connect to ${lastPrinter.name}` : "Choose a printer to connect to"}
         >
           {busy ? <Loader2 size={16} className="spin" /> : <Bluetooth size={16} />}
-          {finding ? `Looking for ${shortName(lastPrinter?.name ?? "")}…` : lastPrinter ? `Connect ${shortName(lastPrinter.name)}` : "Connect printer"}
+          {finding ? `Looking for ${lastLabel}…` : lastPrinter ? `Connect ${lastLabel}` : "Connect printer"}
         </button>
       )}
       <button
@@ -73,6 +76,17 @@ export function ConnectButton({ status, finding, lastPrinter, onConnect, onDisco
           >
             <Repeat size={15} /> Switch printer…
           </button>
+          {lastPrinter && (
+            <button
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                onRename();
+              }}
+            >
+              <Pencil size={15} /> Rename {lastLabel}…
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -7,9 +7,11 @@ type Props = {
   onChange: (size: LabelSize) => void;
   /** Lay the label out for another printer. */
   onPrinter: (printer: PrinterId) => void;
+  /** The connected printer's layout, if LabelPad knows it. */
+  connectedPrinter?: PrinterId;
 };
 
-export function LabelSettings({ size, profile, onChange, onPrinter }: Props) {
+export function LabelSettings({ size, profile, onChange, onPrinter, connectedPrinter }: Props) {
   const presets = profile.presets;
   const preset = presets.find((p) => p.widthMm === size.widthMm && p.lengthMm === size.lengthMm);
   const printableMm = Math.floor((profile.printheadPixels / profile.dotsPerMm) * 10) / 10;
@@ -20,13 +22,29 @@ export function LabelSettings({ size, profile, onChange, onPrinter }: Props) {
       <div className="inspector-head">
         <h2>Label</h2>
       </div>
-      <Field label="Printer">
-        <Segmented
-          value={profile.id}
-          onChange={onPrinter}
-          options={Object.values(PRINTERS).map((p) => ({ value: p.id, label: p.name, title: `Lay this label out for the ${p.name}` }))}
-        />
-      </Field>
+      {/* With a printer connected, the label follows it; the choice is for designing without one. */}
+      {connectedPrinter === profile.id ? (
+        <p className="printer-line">
+          For the <strong>{profile.name}</strong> you're connected to.
+        </p>
+      ) : connectedPrinter ? (
+        <div className="printer-line">
+          <span>
+            Laid out for the <strong>{profile.name}</strong>.
+          </span>
+          <button className="button ghost small" onClick={() => onPrinter(connectedPrinter)}>
+            Convert for {PRINTERS[connectedPrinter].name}
+          </button>
+        </div>
+      ) : (
+        <Field label="Printer">
+          <Segmented
+            value={profile.id}
+            onChange={onPrinter}
+            options={Object.values(PRINTERS).map((p) => ({ value: p.id, label: p.name, title: `Lay this label out for the ${p.name}` }))}
+          />
+        </Field>
+      )}
       <div className="presets">
         {presets.map((p) => (
           <button key={p.name} className={`preset${p === preset ? " active" : ""}`} onClick={() => onChange({ widthMm: p.widthMm, lengthMm: p.lengthMm })}>

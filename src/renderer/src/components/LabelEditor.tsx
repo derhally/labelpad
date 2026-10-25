@@ -305,7 +305,7 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
         ) : selection.length > 1 ? (
           <MultiSelection els={selection} label={dots} onApply={editor.updateMany} onDuplicate={duplicate} onDelete={remove} />
         ) : (
-          <LabelSettings size={doc.size} profile={profile} onChange={editor.setSize} onPrinter={setPrinter} />
+          <LabelSettings size={doc.size} profile={profile} onChange={editor.setSize} onPrinter={setPrinter} connectedPrinter={connectedPrinter} />
         )}
       </div>
       {printer.roll && connected && (
