@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/derhally/labelpad/compare/v0.4.0...v0.5.0) (2026-10-25)
+
+
+### Features
+
+* remember window position and size, and add canvas zoom control ([#20](https://github.com/derhally/labelpad/issues/20)) ([171b7eb](https://github.com/derhally/labelpad/commit/171b7eb1a8d3d3a719f75acbd54d8759ed4526c3))
+
 ## [0.4.0](https://github.com/derhally/labelpad/compare/v0.3.0...v0.4.0) (2026-10-25)
 
 
