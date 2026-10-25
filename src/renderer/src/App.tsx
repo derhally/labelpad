@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
+import { message } from "@tauri-apps/plugin-dialog";
 import { Bluetooth, FilePlus2, FolderOpen, LayoutTemplate, Printer, Redo2, Save, Settings as SettingsIcon, Undo2, Unplug } from "lucide-react";
 import { MultiSelection } from "./components/AlignControls";
 import { DevicePicker } from "./components/DevicePicker";
@@ -25,7 +26,7 @@ import { loadDraft, useLabelFile } from "./editor/useLabelFile";
 import { loadSettings, useSettings } from "./settings/useSettings";
 import { useUpdater } from "./updates/useUpdater";
 import type { LabelDoc } from "./editor/types";
-import { canvasSize, DOTS_PER_MM } from "./printer/label";
+import { canvasSize, convertDoc, printerForModel, PRINTERS, profileFor, type PrinterId } from "./printer/label";
 import { usePrinter } from "./printer/usePrinter";
 
 /** Where the icon picker's choice goes: a new element, or an existing icon. */
@@ -49,7 +50,7 @@ export function App() {
     initialPath: initial.path,
     initialDirty: initial.dirty,
   });
-  const blankDoc: LabelDoc = { version: 1, size: settings.labelSize, elements: [] };
+  const blankDoc: LabelDoc = { version: 1, printer: settings.printer, size: settings.labelSize, elements: [] };
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
 
@@ -69,11 +70,24 @@ export function App() {
   const setDensity = (d: number) => updateSettings({ density: d });
   const setCopies = (c: number) => updateSettings({ copies: c });
 
-  const printhead = details.printheadPixels ?? 96;
-  const dots = canvasSize(doc.size, printhead);
+  const profile = profileFor(doc);
+  const dots = canvasSize(doc.size, profile);
+  const mmStep = Math.round(profile.dotsPerMm);
   const selection = doc.elements.filter((e) => selectedIds.includes(e.id));
   const selected = selection.length === 1 ? selection[0] : null;
   const connected = status === "connected" || status === "printing";
+  // The connected printer's layout, when it differs from the label's.
+  const connectedPrinter = connected ? printerForModel(details.model) : undefined;
+  const otherPrinter = connectedPrinter && connectedPrinter !== profile.id ? connectedPrinter : undefined;
+
+  const setPrinter = useCallback((printer: PrinterId) => editor.replace(convertDoc(doc, printer)), [editor, doc]);
+
+  // An empty label just switches to the printer you connect, at its usual size.
+  useEffect(() => {
+    if (!otherPrinter || doc.elements.length) return;
+    const { widthMm, lengthMm } = PRINTERS[otherPrinter].presets[0];
+    editor.replace({ ...doc, printer: otherPrinter, size: { widthMm, lengthMm } });
+  }, [otherPrinter, doc, editor]);
 
   // Keep the saved darkness within what this printer supports.
   useEffect(() => {
@@ -82,10 +96,10 @@ export function App() {
     }
   }, [settings.density, details.densityMin, details.densityMax, updateSettings]);
 
-  // New labels start at the size you used last.
+  // New labels start at the size and printer you used last.
   useEffect(() => {
-    updateSettings({ labelSize: doc.size });
-  }, [doc.size, updateSettings]);
+    updateSettings({ labelSize: doc.size, printer: profile.id });
+  }, [doc.size, profile.id, updateSettings]);
 
   // Forget selected elements that were undone away.
   useEffect(() => {
@@ -109,12 +123,15 @@ export function App() {
 
   // Render again at print time so dates and times are current. Numbered
   // labels render once per number and print as separate pages.
+  // A label laid out for another printer is converted for the connected one.
   const print = useCallback(async () => {
     if (status !== "connected") return;
     const now = new Date();
+    const job = otherPrinter ? convertDoc(doc, otherPrinter) : doc;
+    const size = canvasSize(job.size, profileFor(job));
     const render = async (count: number) => {
       const canvas = document.createElement("canvas");
-      await renderLabel(canvas, dots.width, dots.height, doc.elements, now, { count });
+      await renderLabel(canvas, size.width, size.height, job.elements, now, { count });
       return canvas;
     };
     try {
@@ -129,7 +146,7 @@ export function App() {
     } catch {
       // The print panel shows the error.
     }
-  }, [printer, editor, status, density, copies, dots.width, dots.height, doc.elements, numbered, counter]);
+  }, [printer, editor, status, density, copies, doc, otherPrinter, numbered, counter]);
 
   const clock = useMinuteClock(doc.elements.some((e) => e.type === "datetime"));
 
@@ -138,18 +155,56 @@ export function App() {
     setSelectedId(el.id);
   };
 
-  const addImage = async (replaceId?: string) => {
-    const file = await pickImageFile();
-    if (!file) return;
+  /** Add an image file as a new element, as large as fits the label, or put it into an existing one. */
+  const addImageFile = async (file: File, replaceId?: string) => {
     const { src, name, aspect } = await importImage(file);
     if (replaceId) {
       editor.update(replaceId, { src, name } as Partial<LabelElement>);
       return;
     }
-    const height = dots.height - 8;
-    const width = Math.min(dots.width - 8, Math.round(height * aspect));
-    addElement(makeElement("image", dots, { src, name, width, height: Math.round(width / aspect), x: 4, y: Math.round((dots.height - width / aspect) / 2) } as Partial<LabelElement>));
+    const width = Math.min(dots.width - 8, Math.round((dots.height - 8) * aspect));
+    const height = Math.round(width / aspect);
+    addElement(
+      makeElement("image", dots, { src, name, width, height, x: Math.round((dots.width - width) / 2), y: Math.round((dots.height - height) / 2) } as Partial<LabelElement>),
+    );
   };
+
+  const addImage = async (replaceId?: string) => {
+    const file = await pickImageFile();
+    if (file) await addImageFile(file, replaceId);
+  };
+
+  /** Dropped or pasted content: an image becomes an image element, text becomes a text box. */
+  const addContent = async (data: DataTransfer) => {
+    const files = [...data.files];
+    try {
+      const image = files.find((f) => f.type.startsWith("image/"));
+      if (image) return await addImageFile(image);
+      const textFile = files.find((f) => f.type.startsWith("text/") || /\.txt$/i.test(f.name));
+      const text = (textFile ? await textFile.text() : data.getData("text/plain")).trim();
+      if (text) return addElement(makeElement("text", dots, { text } as Partial<LabelElement>));
+      if (files.length) throw new Error(`LabelPad can't add ${files[0].name}. Use an image or a text file.`);
+    } catch (e) {
+      void message(e instanceof Error ? e.message : String(e), { title: "Couldn't add that", kind: "error" });
+    }
+  };
+  const addContentRef = useRef(addContent);
+  addContentRef.current = addContent;
+
+  // Paste an image or text onto the label, unless a field has focus.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const typing = e.target instanceof HTMLElement && e.target.closest("input, textarea, select, [contenteditable]");
+      if (typing || !e.clipboardData) return;
+      e.preventDefault();
+      void addContentRef.current(e.clipboardData);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, []);
+
+  const [dropping, setDropping] = useState(false);
+  const canDrop = (e: DragEvent) => e.dataTransfer.types.includes("Files") || e.dataTransfer.types.includes("text/plain");
 
   const add = (type: ElementType) => {
     if (type === "image") return void addImage();
@@ -165,10 +220,10 @@ export function App() {
 
   const duplicate = useCallback(() => {
     if (!selection.length) return;
-    const copies = selection.map((el) => ({ ...el, id: newId(), x: el.x + DOTS_PER_MM, y: el.y + DOTS_PER_MM }));
+    const copies = selection.map((el) => ({ ...el, id: newId(), x: el.x + mmStep, y: el.y + mmStep }));
     editor.addMany(copies);
     setSelectedIds(copies.map((c) => c.id));
-  }, [selection, editor]);
+  }, [selection, editor, mmStep]);
 
   const remove = useCallback(() => {
     if (!selection.length) return;
@@ -215,7 +270,7 @@ export function App() {
         setSelectedIds([]);
       } else if (selection.length && e.key.startsWith("Arrow")) {
         e.preventDefault();
-        const step = e.shiftKey ? DOTS_PER_MM : 1;
+        const step = e.shiftKey ? mmStep : 1;
         const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
         const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
         editor.updateMany(Object.fromEntries(selection.map((el) => [el.id, { x: el.x + dx, y: el.y + dy }])));
@@ -223,7 +278,7 @@ export function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [editor, file, doc.elements, selection, duplicate, remove, print]);
+  }, [editor, file, doc.elements, selection, duplicate, remove, print, mmStep]);
 
   return (
     <div className="app">
@@ -276,7 +331,24 @@ export function App() {
         </div>
       </header>
 
-      <main className="workspace">
+      <main
+        className={`workspace${dropping ? " dropping" : ""}`}
+        onDragOver={(e) => {
+          if (!canDrop(e)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+          setDropping(true);
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropping(false);
+        }}
+        onDrop={(e) => {
+          setDropping(false);
+          if (!canDrop(e)) return;
+          e.preventDefault();
+          void addContent(e.dataTransfer);
+        }}
+      >
         <Toolbar onAdd={add} />
 
         <EditorStage
@@ -314,7 +386,7 @@ export function App() {
             ) : selection.length > 1 ? (
               <MultiSelection els={selection} label={dots} onApply={editor.updateMany} onDuplicate={duplicate} onDelete={remove} />
             ) : (
-              <LabelSettings size={doc.size} printableMm={printhead / DOTS_PER_MM} onChange={editor.setSize} />
+              <LabelSettings size={doc.size} profile={profile} onChange={editor.setSize} onPrinter={setPrinter} />
             )}
           </div>
           {printer.roll && connected && (
@@ -323,6 +395,7 @@ export function App() {
               roll={printer.roll}
               knownSize={settings.rollSizes[printer.roll.barcode || printer.roll.uuid]}
               labelSize={doc.size}
+              presets={profile.presets}
               onUseSize={editor.setSize}
               onRemember={(size) => {
                 const key = printer.roll!.barcode || printer.roll!.uuid;
@@ -332,6 +405,7 @@ export function App() {
             />
           )}
           <PrintPanel
+            mismatch={otherPrinter && { label: profile.name, printer: PRINTERS[otherPrinter].name, onConvert: () => setPrinter(otherPrinter) }}
             numbering={numbered ? { ...counter, onChange: editor.setCounter } : undefined}
             printer={printer} density={density} copies={copies} onDensity={setDensity} onCopies={setCopies} onPrint={print} onConnect={connect} />
         </aside>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ask, message, open, save } from "@tauri-apps/plugin-dialog";
 import { FILE_EXTENSION, FILE_FILTERS, fileTitle, parseLabel, serializeLabel } from "./labelFile";
@@ -100,19 +101,37 @@ export function useLabelFile(editor: Editor, opts: { initialPath: string | null;
     [confirmDiscard, editor],
   );
 
+  /** Open a label file, asking first if the current one has unsaved changes. */
+  const openPath = useCallback(
+    async (chosen: string) => {
+      if (!(await confirmDiscard())) return;
+      try {
+        const loaded = parseLabel(await invoke<string>("label_read", { path: chosen }));
+        editor.reset(loaded);
+        setPath(chosen);
+        setSaved(loaded);
+      } catch (e) {
+        await message(e instanceof Error ? e.message : String(e), { title: "Couldn't open label", kind: "error" });
+      }
+    },
+    [confirmDiscard, editor],
+  );
+
   const openFile = useCallback(async () => {
-    if (!(await confirmDiscard())) return;
     const chosen = await open({ filters: FILE_FILTERS, multiple: false, directory: false });
-    if (typeof chosen !== "string") return;
-    try {
-      const loaded = parseLabel(await invoke<string>("label_read", { path: chosen }));
-      editor.reset(loaded);
-      setPath(chosen);
-      setSaved(loaded);
-    } catch (e) {
-      await message(e instanceof Error ? e.message : String(e), { title: "Couldn't open label", kind: "error" });
-    }
-  }, [confirmDiscard, editor]);
+    if (typeof chosen === "string") await openPath(chosen);
+  }, [openPath]);
+
+  // Labels opened from the file manager: at startup, and (on macOS) while running.
+  useEffect(() => {
+    const take = () =>
+      invoke<string[]>("opened_files_take")
+        .then((paths) => (paths.length ? openPath(paths[paths.length - 1]) : undefined))
+        .catch(() => undefined);
+    void take();
+    const off = listen("open-files", take);
+    return () => void off.then((f) => f());
+  }, [openPath]);
 
   // Ask before closing the window with unsaved changes.
   useEffect(() => {

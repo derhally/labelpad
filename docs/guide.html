@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LabelPad Guide</title>
-  <meta name="description" content="A modern, free desktop app for designing and printing labels on the Niimbot D11 Bluetooth label printer. Windows, macOS and Linux.">
+  <meta name="description" content="A modern, free desktop app for designing and printing labels on Niimbot D11 and M3 Bluetooth label printers. Windows, macOS and Linux.">
   <meta property="og:title" content="LabelPad">
-  <meta property="og:description" content="Design and print labels on your Niimbot D11 from Windows, macOS and Linux.">
+  <meta property="og:description" content="Design and print labels on your Niimbot D11 or M3 from Windows, macOS and Linux.">
   <meta property="og:image" content="screenshots/editor-light.png">
   <link rel="icon" href="assets/icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -66,17 +66,17 @@
 
       <h2 id="connect">Connect the printer</h2>
       <ol class="steps">
-        <li>Turn the D11 on. You don't need to pair it in your system's Bluetooth settings.</li>
+        <li>Turn the printer on. You don't need to pair it in your system's Bluetooth settings.</li>
         <li>Click <strong>Connect printer</strong> in the top right. Printers nearby appear in a list, and the one you used last is marked.</li>
         <li>Pick your printer. The header shows its name and battery, and the right panel shows the loaded label roll.</li>
       </ol>
       <img class="shot" src="screenshots/connect.png" alt="The printer list after clicking Connect printer" loading="lazy">
 
       <h2 id="editor">The editor</h2>
-      <p>The window has three parts. On the left are the things you can add. In the middle is the label, drawn at the printer's real resolution of 8 dots per millimetre, so the preview is exactly what prints. On the right, the panel changes with what you've selected: the label's size when nothing is selected, or the settings of the item you clicked. The print controls sit at the bottom of that panel.</p>
+      <p>The window has three parts. On the left are the things you can add. In the middle is the label, drawn at the printer's real resolution (8 dots per millimetre on the D11, about 12 on the M3), so the preview is exactly what prints. On the right, the panel changes with what you've selected: the label's size when nothing is selected, or the settings of the item you clicked. The print controls sit at the bottom of that panel.</p>
       <img class="shot" src="screenshots/date-time.png" alt="The editor with a date element selected and its settings on the right" loading="lazy">
       <p>Drag items to move them, pull the handles to resize, and use the round handle to rotate. Items snap to the label's edges, its center, and each other. Undo and redo cover every change.</p>
-      <p>With nothing selected, the right panel sets the label size. Pick a common D11 size or type your own width and length in millimetres.</p>
+      <p>With nothing selected, the right panel sets the label size. Choose the printer the label is for (D11 or M3), then pick one of its common sizes or type your own width and length in millimetres. Connecting a different printer offers to convert the label, and it's converted automatically when it prints.</p>
 
       <h2 id="elements">What you can add</h2>
       <table>
@@ -160,7 +160,7 @@
 
       <h2 id="troubleshooting">Troubleshooting</h2>
       <h3>The printer doesn't appear in the list</h3>
-      <p>Make sure it's on and not connected to your phone; a D11 talks to one device at a time. Close the Niimbot phone app or turn off your phone's Bluetooth, then try again. Check that Bluetooth is on in your computer's settings.</p>
+      <p>Make sure it's on and not connected to your phone; a Niimbot printer talks to one device at a time. Close the Niimbot phone app or turn off your phone's Bluetooth, then try again. Check that Bluetooth is on in your computer's settings.</p>
       <h3>It connects, then drops</h3>
       <p>Move closer, and charge the printer if the battery is low. Disconnect and reconnect from the header.</p>
       <h3>The print is shifted or cut off</h3>
@@ -183,7 +183,7 @@ npm run build    # build an installer for this system</code></pre>
 
   <footer>
     <div class="wrap">
-      <span>LabelPad is an independent, MIT-licensed project. It is not affiliated with or endorsed by Niimbot; Niimbot and D11 are trademarks of their owner, used here only to say which printers work.</span>
+      <span>LabelPad is an independent, MIT-licensed project. It is not affiliated with or endorsed by Niimbot; Niimbot, D11 and M3 are trademarks of their owner, used here only to say which printers work.</span>
       <span><a href="guide.html">Guide</a> · <a href="https://github.com/derhally/labelpad">Source</a> · <a href="https://github.com/derhally/labelpad/issues">Report a problem</a></span>
     </div>
   </footer>

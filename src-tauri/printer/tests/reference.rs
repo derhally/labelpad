@@ -48,6 +48,8 @@ fn request_packets_match() {
         ("printStatus", gen::print_status()),
         ("printEnd", gen::print_end()),
         ("printEmptySpace", gen::print_empty_space(300, 7)),
+        ("printStart9b", gen::print_start_9b(5)),
+        ("setPageSize13b", gen::set_page_size_13b(354, 592, 2)),
     ];
     let expected = f["packets"].as_object().unwrap();
     assert_eq!(ours.len(), expected.len(), "every fixture packet is covered");
@@ -171,4 +173,13 @@ fn d11_task_lookup() {
     assert_eq!(models::find_print_task("D11", Some(1)), Some(PrintTaskName::D110));
     assert_eq!(models::find_print_task("D11", Some(3)), Some(PrintTaskName::D11V1));
     assert_eq!(models::find_print_task("D110", None), Some(PrintTaskName::D110));
+}
+
+#[test]
+fn m3_task_lookup() {
+    let m3 = models::find_model(6400).expect("M3 is model 6400");
+    assert_eq!((m3.model, m3.dpi, m3.printhead_pixels), ("M3", 300, 851));
+    assert_eq!(m3.print_direction, PrintDirection::Top);
+    // The M3 isn't listed by name; protocol v4 and up fall back to the D110M v4 task.
+    assert_eq!(models::find_print_task("M3", Some(5)), Some(PrintTaskName::D110MV4));
 }

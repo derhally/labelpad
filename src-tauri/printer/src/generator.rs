@@ -32,6 +32,12 @@ pub fn set_label_type(value: u8) -> Packet {
 pub fn print_start_1b() -> Packet {
     Packet::new(req::PRINT_START, [1])
 }
+/// Declares the job's total page count; first seen on the D110M v4. Single colour, default speed.
+pub fn print_start_9b(total_pages: u16) -> Packet {
+    let mut d = u16_be(total_pages).to_vec();
+    d.extend([0, 0, 0, 0, 0, 0, 0]);
+    Packet::new(req::PRINT_START, d)
+}
 pub fn print_clear() -> Packet {
     Packet::new(req::PRINT_CLEAR, [1])
 }
@@ -53,6 +59,14 @@ pub fn set_page_size_2b(rows: u16) -> Packet {
 pub fn set_page_size_4b(rows: u16, cols: u16) -> Packet {
     let mut d = u16_be(rows).to_vec();
     d.extend(u16_be(cols));
+    Packet::new(req::SET_PAGE_SIZE, d)
+}
+/// Size and copies in one packet, with no cutting; first seen on the D110M v4.
+pub fn set_page_size_13b(rows: u16, cols: u16, copies: u16) -> Packet {
+    let mut d = u16_be(rows).to_vec();
+    d.extend(u16_be(cols));
+    d.extend(u16_be(copies));
+    d.extend([0, 0, 0, 0, 0, 0, 0]);
     Packet::new(req::SET_PAGE_SIZE, d)
 }
 pub fn set_print_quantity(quantity: u16) -> Packet {

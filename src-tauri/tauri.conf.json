@@ -17,7 +17,8 @@
         "width": 1180,
         "height": 760,
         "minWidth": 900,
-        "minHeight": 580
+        "minHeight": 580,
+        "dragDropEnabled": false
       }
     ],
     "security": {
@@ -34,7 +35,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": true,
+    "fileAssociations": [
+      {
+        "ext": ["labelpad"],
+        "name": "LabelPad label",
+        "description": "LabelPad label",
+        "role": "Editor",
+        "mimeType": "application/x-labelpad"
+      }
+    ]
   },
   "plugins": {
     "updater": {

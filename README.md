@@ -1,6 +1,6 @@
 # LabelPad
 
-A modern desktop app for designing and printing labels on the **Niimbot D11** Bluetooth label printer. Runs on Windows, macOS and Linux.
+A modern desktop app for designing and printing labels on **Niimbot D11 and M3** Bluetooth label printers. Runs on Windows, macOS and Linux.
 
 **[Website and guide](https://derhally.github.io/labelpad/)** · **[Download](https://github.com/derhally/labelpad/releases/latest)**
 
@@ -17,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Turn on the D11, click **Connect printer**, and pick it from the list. You don't need to pair it in your system's Bluetooth settings first.
+Turn on the printer, click **Connect printer**, and pick it from the list. You don't need to pair it in your system's Bluetooth settings first.
 
 ## How it's built
 

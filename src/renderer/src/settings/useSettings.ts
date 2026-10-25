@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import type { PrinterId } from "../printer/label";
 
 export type Theme = "system" | "light" | "dark";
 
@@ -9,6 +10,8 @@ export type Settings = {
   copies: number;
   /** Size for new labels; follows the last size picked. */
   labelSize: { widthMm: number; lengthMm: number };
+  /** Printer new labels are laid out for; follows the last one used. */
+  printer: PrinterId;
   /** Reopen the label you were working on when the app starts. */
   restoreLast: boolean;
   lastPrinter: { id: string; name: string } | null;
@@ -27,6 +30,7 @@ const DEFAULTS: Settings = {
   density: null,
   copies: 1,
   labelSize: { widthMm: 12, lengthMm: 40 },
+  printer: "d11",
   restoreLast: true,
   lastPrinter: null,
   rollSizes: {},

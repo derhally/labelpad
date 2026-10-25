@@ -2,9 +2,17 @@ import { fitFontSize } from "./render";
 import { systemUses12Hour } from "./dateFormat";
 import { newId, type DateTimeElement, type ElementType, type LabelDoc, type LabelElement, type TextElement } from "./types";
 
-/** A fresh element of the given type, centred on a label of the given size in dots. */
-export function makeElement(type: ElementType, label: { width: number; height: number }, extra?: Partial<LabelElement>): LabelElement {
+/**
+ * A fresh element of the given type, centred on a label of the given size in
+ * dots. Line weights and corners are set for 8 dots per mm and scaled from there.
+ */
+export function makeElement(
+  type: ElementType,
+  label: { width: number; height: number; dotsPerMm?: number },
+  extra?: Partial<LabelElement>,
+): LabelElement {
   const h = label.height;
+  const k = (label.dotsPerMm ?? 8) / 8;
   const box = (width: number, height: number) => ({
     id: newId(),
     x: Math.round((label.width - width) / 2),
@@ -61,7 +69,7 @@ export function makeElement(type: ElementType, label: { width: number; height: n
     case "icon":
       return { ...box(h - 16, h - 16), type: "icon", icon: "star", strokeWidth: 2, ...extra } as LabelElement;
     case "shape":
-      return { ...box(Math.min(label.width - 8, 120), h - 8), type: "shape", shape: "rect", strokeWidth: 3, filled: false, cornerRadius: 8, ...extra } as LabelElement;
+      return { ...box(Math.min(label.width - 8, 120), h - 8), type: "shape", shape: "rect", strokeWidth: Math.round(3 * k), filled: false, cornerRadius: Math.round(8 * k), ...extra } as LabelElement;
   }
 }
 

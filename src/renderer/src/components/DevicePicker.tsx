@@ -22,7 +22,7 @@ export function DevicePicker({ open, printers, lastPrinterId, onPick, onClose }:
         <header className="dialog-header">
           <div>
             <h2 id="picker-title">Connect a printer</h2>
-            <p className="muted">Turn on your D11 and keep it close to this computer.</p>
+            <p className="muted">Turn on your printer and keep it close to this computer.</p>
           </div>
           <button className="icon-button" onClick={onClose} aria-label="Cancel">
             <X size={18} />
