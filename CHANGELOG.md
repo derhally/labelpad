@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.0](https://github.com/derhally/labelpad/compare/v0.3.0...v0.4.0) (2026-10-25)
+
+
+### Features
+
+* interface polish, underline, and always-visible text size ([#18](https://github.com/derhally/labelpad/issues/18)) ([58f4702](https://github.com/derhally/labelpad/commit/58f4702ffeabcbb1546a2708707b48f35935c64c))
+* MCP server for AI agents, and fix M3 printing of blank space ([#19](https://github.com/derhally/labelpad/issues/19)) ([301ae03](https://github.com/derhally/labelpad/commit/301ae038a15edade3469730efb1ecabd53b952a2))
+* tabs, quick connect and printer names ([#16](https://github.com/derhally/labelpad/issues/16)) ([8f7d6cd](https://github.com/derhally/labelpad/commit/8f7d6cdeb7978d6b1cd9171df355108d9a495713))
+
 ## [0.3.0](https://github.com/derhally/labelpad/compare/v0.2.0...v0.3.0) (2026-10-25)
 
 
