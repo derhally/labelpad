@@ -1,6 +1,6 @@
 import { makeElement } from "./defaults";
 import { canvasSize, PRINTERS, type PrinterId } from "../printer/label";
-import { newId, type ElementType, type LabelDoc, type LabelElement } from "./types";
+import { newId, QR_TYPES, WIFI_SECURITY, type ElementType, type LabelDoc, type LabelElement, type QrType } from "./types";
 
 /** Label files are JSON with this marker, so other JSON files are refused clearly. */
 const FORMAT = "labelpad-label";
@@ -42,6 +42,11 @@ export function parseLabel(text: string): LabelDoc {
     // Keep only known fields whose type matches the default.
     for (const [key, value] of Object.entries(raw)) {
       if (key in base && typeof value === typeof el[key]) el[key] = value;
+    }
+    if (raw.type === "qr") {
+      // QR codes from before types were added (or of a type this version doesn't know) encode their value as it is.
+      if (!QR_TYPES.includes(raw.qrType as QrType)) el.qrType = "text";
+      if (!WIFI_SECURITY.includes(el.security as (typeof WIFI_SECURITY)[number])) el.security = "WPA";
     }
     return [{ ...el, id: typeof raw.id === "string" && raw.id ? raw.id : newId() } as LabelElement];
   });

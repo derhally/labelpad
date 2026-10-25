@@ -5,7 +5,8 @@ import {
 import { ICONS } from "../editor/icons";
 import { fitFontSize } from "../editor/render";
 import { DATE_PRESETS, dateTimeText, formatDate, formatTime } from "../editor/dateFormat";
-import { BARCODE_FORMATS, type LabelElement, type TextStyle } from "../editor/types";
+import { BARCODE_FORMATS, QR_TYPES, type LabelElement, type QrElement, type QrType, type TextStyle } from "../editor/types";
+import { QR_MIN_DOTS, qrFit } from "../editor/qr";
 import { useState } from "react";
 import { FontBrowser } from "./FontBrowser";
 import { FontPicker } from "./FontPicker";
@@ -203,26 +204,7 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
         </>
       )}
 
-      {el.type === "qr" && (
-        <>
-          <Field label="Text or link">
-            <textarea rows={3} value={el.value} {...typing} onChange={(e) => type({ value: e.target.value })} />
-          </Field>
-          <CounterHint onInsert={() => onChange({ value: `${el.value}{count}` })} />
-          <Field label="Error correction">
-            <Segmented
-              value={el.errorCorrection}
-              onChange={(errorCorrection) => onChange({ errorCorrection })}
-              options={[
-                { value: "L", label: "Low", title: "Smallest code, recovers 7% damage" },
-                { value: "M", label: "Medium", title: "Recovers 15% damage" },
-                { value: "Q", label: "High", title: "Recovers 25% damage" },
-                { value: "H", label: "Max", title: "Largest code, recovers 30% damage" },
-              ]}
-            />
-          </Field>
-        </>
-      )}
+      {el.type === "qr" && <QrFields el={el} onChange={onChange} typing={typing} type={type} dotsPerMm={label.dotsPerMm} />}
 
       {el.type === "icon" && (
         <>
@@ -393,6 +375,157 @@ function TextStyleFields({
 }
 
 /** Explains {count} and adds it to the end of the field. */
+const QR_TYPE_LABELS: Record<QrType, string> = {
+  link: "Link",
+  text: "Text",
+  email: "Email",
+  wifi: "Wi-Fi network",
+  phone: "Phone call",
+  sms: "Text message (SMS)",
+  contact: "Contact card",
+  location: "Map location",
+};
+
+/** What a QR code holds, with fields for its type. */
+function QrFields({
+  el,
+  onChange,
+  typing,
+  type,
+  dotsPerMm,
+}: {
+  el: QrElement;
+  onChange: Update;
+  typing: { onFocus: () => void };
+  type: (patch: Partial<LabelElement>) => void;
+  dotsPerMm: number;
+}) {
+  const text = (label: string, key: keyof QrElement, placeholder?: string, inputType = "text") => (
+    <Field label={label}>
+      <input type={inputType} value={el[key] as string} placeholder={placeholder} {...typing} onChange={(e) => type({ [key]: e.target.value })} />
+    </Field>
+  );
+  const area = (label: string, key: keyof QrElement) => (
+    <Field label={label}>
+      <textarea rows={3} value={el[key] as string} {...typing} onChange={(e) => type({ [key]: e.target.value })} />
+    </Field>
+  );
+  let fit: { modules: number; dots: number } | null = null;
+  try {
+    fit = qrFit(el, Math.min(el.width, el.height));
+  } catch {
+    // The issue banner says what's wrong.
+  }
+  return (
+    <>
+      <Field label="Type">
+        <select value={el.qrType} onChange={(e) => onChange({ qrType: e.target.value as QrType })}>
+          {QR_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {QR_TYPE_LABELS[t]}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {el.qrType === "link" && (
+        <>
+          {text("Link", "value", "example.com", "url")}
+          <CounterHint onInsert={() => onChange({ value: `${el.value}{count}` })} />
+        </>
+      )}
+      {el.qrType === "text" && (
+        <>
+          {area("Text", "value")}
+          <CounterHint onInsert={() => onChange({ value: `${el.value}{count}` })} />
+        </>
+      )}
+      {el.qrType === "email" && (
+        <>
+          {text("To", "email", "name@example.com", "email")}
+          {text("Subject", "subject")}
+          {area("Message", "body")}
+        </>
+      )}
+      {el.qrType === "wifi" && (
+        <>
+          {text("Network name", "ssid")}
+          <Field label="Security">
+            <Segmented
+              value={el.security}
+              onChange={(security) => onChange({ security })}
+              options={[
+                { value: "WPA", label: "WPA", title: "WPA, WPA2 or WPA3: most networks" },
+                { value: "WEP", label: "WEP", title: "Older networks" },
+                { value: "nopass", label: "None", title: "An open network with no password" },
+              ]}
+            />
+          </Field>
+          {el.security !== "nopass" && text("Password", "password")}
+          <Toggle checked={el.hidden} onChange={(hidden) => onChange({ hidden })}>
+            Hidden network
+          </Toggle>
+          <p className="muted hint">Scanning joins the network. Anyone who can see the label can read the password.</p>
+        </>
+      )}
+      {el.qrType === "phone" && text("Phone number", "phone", "+1 555 123 4567", "tel")}
+      {el.qrType === "sms" && (
+        <>
+          {text("Phone number", "phone", "+1 555 123 4567", "tel")}
+          {area("Message", "body")}
+        </>
+      )}
+      {el.qrType === "contact" && (
+        <>
+          {text("Name", "name", "Jane Doe")}
+          {text("Phone", "phone", undefined, "tel")}
+          {text("Email", "email", undefined, "email")}
+          {text("Company", "company")}
+          {text("Job title", "jobTitle")}
+          {text("Website", "website", undefined, "url")}
+          {text("Address", "address")}
+        </>
+      )}
+      {el.qrType === "location" && (
+        <>
+          <div className="grid-2">
+            {text("Latitude", "latitude", "51.5007")}
+            {text("Longitude", "longitude", "-0.1246")}
+          </div>
+          <p className="muted hint">Decimal degrees. Copy them from a map app by long-pressing a place.</p>
+        </>
+      )}
+      <Field label="Error correction">
+        <Segmented
+          value={el.errorCorrection}
+          onChange={(errorCorrection) => onChange({ errorCorrection })}
+          options={[
+            { value: "L", label: "Low", title: "Smallest code, recovers 7% damage" },
+            { value: "M", label: "Medium", title: "Recovers 15% damage" },
+            { value: "Q", label: "High", title: "Recovers 25% damage" },
+            { value: "H", label: "Max", title: "Largest code, recovers 30% damage" },
+          ]}
+        />
+      </Field>
+      {fit && fit.dots >= 1 && <QrDensity modules={fit.modules} dots={fit.dots} mm={fit.dots / dotsPerMm} />}
+    </>
+  );
+}
+
+/** How easily the code will scan, from the printed size of its squares. */
+function QrDensity({ modules, dots, mm }: { modules: number; dots: number; mm: number }) {
+  const tooSmall = dots < QR_MIN_DOTS || mm < 0.3;
+  return (
+    <p className={`muted hint${tooSmall ? " qr-dense" : ""}`}>
+      {modules} × {modules} squares, each {mm.toFixed(2)} mm.{" "}
+      {tooSmall
+        ? "Too small to scan reliably: make the code bigger, put less in it, or lower the error correction."
+        : mm < 0.5
+          ? "Should scan up close. A bigger code or less data scans more easily."
+          : "Easy to scan."}
+    </p>
+  );
+}
+
 function CounterHint({ onInsert }: { onInsert: () => void }) {
   return (
     <p className="muted hint counter-hint">

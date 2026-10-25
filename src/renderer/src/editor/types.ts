@@ -83,10 +83,42 @@ export type BarcodeElement = ElementBase & {
   showText: boolean;
 };
 
+export const QR_TYPES = ["link", "text", "email", "wifi", "phone", "sms", "contact", "location"] as const;
+export type QrType = (typeof QR_TYPES)[number];
+export const WIFI_SECURITY = ["WPA", "WEP", "nopass"] as const;
+
+/**
+ * A QR code. What it encodes is built from the fields its qrType uses (see
+ * qr.ts); the rest are kept, so switching type and back loses nothing.
+ */
 export type QrElement = ElementBase & {
   type: "qr";
+  qrType: QrType;
+  /** link: the address. text: the text. */
   value: string;
   errorCorrection: "L" | "M" | "Q" | "H";
+  /** email, contact. */
+  email: string;
+  /** email. */
+  subject: string;
+  /** email: the message. sms: the text message. */
+  body: string;
+  /** phone, sms, contact. */
+  phone: string;
+  /** wifi: network name. */
+  ssid: string;
+  password: string;
+  security: (typeof WIFI_SECURITY)[number];
+  hidden: boolean;
+  /** contact. */
+  name: string;
+  company: string;
+  jobTitle: string;
+  website: string;
+  address: string;
+  /** location: decimal degrees, as typed. */
+  latitude: string;
+  longitude: string;
 };
 
 export type IconElement = ElementBase & {

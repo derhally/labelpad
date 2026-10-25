@@ -1,6 +1,28 @@
 import { fitFontSize } from "./render";
 import { systemUses12Hour } from "./dateFormat";
-import { newId, type DateTimeElement, type ElementType, type LabelDoc, type LabelElement, type TextElement } from "./types";
+import { newId, type DateTimeElement, type ElementBase, type ElementType, type LabelDoc, type LabelElement, type QrElement, type TextElement } from "./types";
+
+const QR_DEFAULTS: Omit<QrElement, keyof ElementBase> = {
+  type: "qr",
+  qrType: "link",
+  value: "https://example.com",
+  errorCorrection: "M",
+  email: "",
+  subject: "",
+  body: "",
+  phone: "",
+  ssid: "",
+  password: "",
+  security: "WPA",
+  hidden: false,
+  name: "",
+  company: "",
+  jobTitle: "",
+  website: "",
+  address: "",
+  latitude: "",
+  longitude: "",
+};
 
 /**
  * A fresh element of the given type, centred on a label of the given size in
@@ -67,7 +89,7 @@ export function makeElement(
     case "barcode":
       return { ...box(Math.min(label.width - 16, 180), h - 8), type: "barcode", value: "12345678", format: "CODE128", showText: true, ...extra } as LabelElement;
     case "qr":
-      return { ...box(h - 8, h - 8), type: "qr", value: "https://example.com", errorCorrection: "M", ...extra } as LabelElement;
+      return { ...box(h - 8, h - 8), ...QR_DEFAULTS, ...extra } as LabelElement;
     case "icon":
       return { ...box(h - 16, h - 16), type: "icon", icon: "star", strokeWidth: 2, ...extra } as LabelElement;
     case "shape":
