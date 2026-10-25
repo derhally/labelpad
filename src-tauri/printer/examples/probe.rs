@@ -47,7 +47,12 @@ async fn main() -> printer::Result<()> {
         let mut bits = vec![0u8; (w * h).div_ceil(8) as usize];
         for y in 0..h {
             for x in 0..w {
-                let frame = x < 4 || y < 4 || x >= w - 4 || y >= h - 4;
+                // A 4-dot edge frame, plus a 1 mm thick frame inset by 1 mm (left and top) and 2 mm (right and bottom).
+                let edge = x < 4 || y < 4 || x >= w - 4 || y >= h - 4;
+                let (a, b) = (dots(1.0), dots(2.0));
+                let inset = (x >= a && x < 2 * a && y >= a && y < h - b) || (y >= a && y < 2 * a && x >= a && x < w - b)
+                    || (x >= w - b - a && x < w - b && y >= a && y < h - b) || (y >= h - b - a && y < h - b && x >= a && x < w - b);
+                let frame = edge || inset;
                 let cross = (x * h).abs_diff(y * w) < 3 * w.max(h) || (x * h).abs_diff((h - 1 - y) * w) < 3 * w.max(h);
                 if frame || cross {
                     let i = (y * w + x) as usize;

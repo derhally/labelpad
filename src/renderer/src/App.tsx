@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
+import { message } from "@tauri-apps/plugin-dialog";
 import { Bluetooth, FilePlus2, FolderOpen, LayoutTemplate, Printer, Redo2, Save, Settings as SettingsIcon, Undo2, Unplug } from "lucide-react";
 import { MultiSelection } from "./components/AlignControls";
 import { DevicePicker } from "./components/DevicePicker";
@@ -154,18 +155,56 @@ export function App() {
     setSelectedId(el.id);
   };
 
-  const addImage = async (replaceId?: string) => {
-    const file = await pickImageFile();
-    if (!file) return;
+  /** Add an image file as a new element, as large as fits the label, or put it into an existing one. */
+  const addImageFile = async (file: File, replaceId?: string) => {
     const { src, name, aspect } = await importImage(file);
     if (replaceId) {
       editor.update(replaceId, { src, name } as Partial<LabelElement>);
       return;
     }
-    const height = dots.height - 8;
-    const width = Math.min(dots.width - 8, Math.round(height * aspect));
-    addElement(makeElement("image", dots, { src, name, width, height: Math.round(width / aspect), x: 4, y: Math.round((dots.height - width / aspect) / 2) } as Partial<LabelElement>));
+    const width = Math.min(dots.width - 8, Math.round((dots.height - 8) * aspect));
+    const height = Math.round(width / aspect);
+    addElement(
+      makeElement("image", dots, { src, name, width, height, x: Math.round((dots.width - width) / 2), y: Math.round((dots.height - height) / 2) } as Partial<LabelElement>),
+    );
   };
+
+  const addImage = async (replaceId?: string) => {
+    const file = await pickImageFile();
+    if (file) await addImageFile(file, replaceId);
+  };
+
+  /** Dropped or pasted content: an image becomes an image element, text becomes a text box. */
+  const addContent = async (data: DataTransfer) => {
+    const files = [...data.files];
+    try {
+      const image = files.find((f) => f.type.startsWith("image/"));
+      if (image) return await addImageFile(image);
+      const textFile = files.find((f) => f.type.startsWith("text/") || /\.txt$/i.test(f.name));
+      const text = (textFile ? await textFile.text() : data.getData("text/plain")).trim();
+      if (text) return addElement(makeElement("text", dots, { text } as Partial<LabelElement>));
+      if (files.length) throw new Error(`LabelPad can't add ${files[0].name}. Use an image or a text file.`);
+    } catch (e) {
+      void message(e instanceof Error ? e.message : String(e), { title: "Couldn't add that", kind: "error" });
+    }
+  };
+  const addContentRef = useRef(addContent);
+  addContentRef.current = addContent;
+
+  // Paste an image or text onto the label, unless a field has focus.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const typing = e.target instanceof HTMLElement && e.target.closest("input, textarea, select, [contenteditable]");
+      if (typing || !e.clipboardData) return;
+      e.preventDefault();
+      void addContentRef.current(e.clipboardData);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, []);
+
+  const [dropping, setDropping] = useState(false);
+  const canDrop = (e: DragEvent) => e.dataTransfer.types.includes("Files") || e.dataTransfer.types.includes("text/plain");
 
   const add = (type: ElementType) => {
     if (type === "image") return void addImage();
@@ -292,7 +331,24 @@ export function App() {
         </div>
       </header>
 
-      <main className="workspace">
+      <main
+        className={`workspace${dropping ? " dropping" : ""}`}
+        onDragOver={(e) => {
+          if (!canDrop(e)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+          setDropping(true);
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropping(false);
+        }}
+        onDrop={(e) => {
+          setDropping(false);
+          if (!canDrop(e)) return;
+          e.preventDefault();
+          void addContent(e.dataTransfer);
+        }}
+      >
         <Toolbar onAdd={add} />
 
         <EditorStage
