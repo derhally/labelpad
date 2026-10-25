@@ -3,6 +3,7 @@ import {
   ImageUp, Italic, LayoutGrid, Minus, Square, Trash2, TriangleAlert,
 } from "lucide-react";
 import { ICONS } from "../editor/icons";
+import { fitFontSize } from "../editor/render";
 import { DATE_PRESETS, dateTimeText, formatDate, formatTime } from "../editor/dateFormat";
 import { BARCODE_FORMATS, type LabelElement, type TextStyle } from "../editor/types";
 import { useState } from "react";
@@ -84,7 +85,7 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
             <textarea id="inspector-text" rows={3} value={el.text} {...typing} onChange={(e) => type({ text: e.target.value })} />
           </Field>
           <CounterHint onInsert={() => onChange({ text: `${el.text}{count}` })} />
-          <TextStyleFields el={el} previewText={el.text} onChange={onChange} onCheckpoint={onCheckpoint} dotsPerMm={label.dotsPerMm} />
+          <TextStyleFields el={el} previewText={el.text} onChange={onChange} onCheckpoint={onCheckpoint} dotsPerMm={label.dotsPerMm} box={el} />
         </>
       )}
 
@@ -153,7 +154,7 @@ export function Inspector({ el, issue, onChange, onCheckpoint, onDuplicate, onDe
           <p className="muted hint">
             Prints as: <strong>{dateTimeText(el, now)}</strong>
           </p>
-          <TextStyleFields el={el} previewText={dateTimeText(el, now)} onChange={onChange} onCheckpoint={onCheckpoint} dotsPerMm={label.dotsPerMm} />
+          <TextStyleFields el={el} previewText={dateTimeText(el, now)} onChange={onChange} onCheckpoint={onCheckpoint} dotsPerMm={label.dotsPerMm} box={el} />
         </>
       )}
 
@@ -305,14 +306,18 @@ function TextStyleFields({
   onChange,
   onCheckpoint,
   dotsPerMm,
+  box,
 }: {
   el: TextStyle;
   previewText: string;
   onChange: Update;
   onCheckpoint: () => void;
   dotsPerMm: number;
+  /** The text box, to work out the size "Fit text to box" picks. */
+  box: { width: number; height: number };
 }) {
   const [browsing, setBrowsing] = useState(false);
+  const size = Math.round(el.autoFit ? fitFontSize(el, previewText, box.width, box.height) : el.fontSize);
   return (
     <>
       <div className="field">
@@ -361,22 +366,21 @@ function TextStyleFields({
           { value: "bottom", label: <><AlignEndHorizontal size={16} /> Bottom</>, title: "Align to bottom" },
         ]}
       />
-      <Toggle checked={el.autoFit} onChange={(autoFit) => onChange({ autoFit })}>
+      {/* The size always shows; moving it turns off fitting, which starts from the fitted size. */}
+      <Field label={`Size · ${(size / dotsPerMm).toFixed(1)} mm${el.autoFit ? ", fits the box" : ""}`}>
+        <DetentSlider
+          min={6}
+          max={Math.max(Math.round(12 * dotsPerMm), size)}
+          value={size}
+          // Common text heights: 2, 3, 4, 5, 6, 8 and 10 mm.
+          stops={[2, 3, 4, 5, 6, 8, 10].map((mm) => Math.round(mm * dotsPerMm))}
+          onStart={onCheckpoint}
+          onChange={(fontSize) => onChange({ fontSize, autoFit: false }, { transient: true })}
+        />
+      </Field>
+      <Toggle checked={el.autoFit} onChange={(autoFit) => onChange(autoFit ? { autoFit } : { autoFit, fontSize: size })}>
         Fit text to box
       </Toggle>
-      {!el.autoFit && (
-        <Field label={`Size · ${el.fontSize} dots`}>
-          <DetentSlider
-            min={6}
-            max={Math.round(12 * dotsPerMm)}
-            value={el.fontSize}
-            // Common text heights: 2, 3, 4, 5, 6, 8 and 10 mm.
-            stops={[2, 3, 4, 5, 6, 8, 10].map((mm) => Math.round(mm * dotsPerMm))}
-            onStart={onCheckpoint}
-            onChange={(fontSize) => onChange({ fontSize }, { transient: true })}
-          />
-        </Field>
-      )}
       <Toggle checked={el.invert} onChange={(invert) => onChange({ invert })}>
         White on black
       </Toggle>
