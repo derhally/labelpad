@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { EditorHandle, TabMeta } from "../components/LabelEditor";
+import { align, bounds, type AlignEdge, type Box } from "../editor/arrange";
 import { makeElement } from "../editor/defaults";
 import { ICON_IDS } from "../editor/icons";
 import { importImage } from "../editor/importImage";
@@ -74,6 +75,20 @@ function target(host: Host, args: Args) {
   return { id, agent: handle.agent };
 }
 
+/** The area inside the editor's safe-margin guide: printers can't print reliably within 1 mm of the edge. */
+function safeArea(dots: { width: number; height: number; dotsPerMm: number }): Box {
+  const m = Math.round(dots.dotsPerMm);
+  return { left: m, top: m, right: dots.width - m, bottom: dots.height - m };
+}
+
+/** Which sides of the safe-margin guide an element crosses, if any. */
+function marginNote(el: LabelElement, dots: { width: number; height: number; dotsPerMm: number }) {
+  const b = bounds(el);
+  const safe = safeArea(dots);
+  const sides = [b.left < safe.left && "left", b.top < safe.top && "top", b.right > safe.right && "right", b.bottom > safe.bottom && "bottom"].filter(Boolean);
+  return sides.length ? { warning: `Crosses the 1 mm safe margin on the ${sides.join(", ")}, so it may be cut off when printed.` } : {};
+}
+
 /** Element fields measured in dots in the document, and in millimeters in the tools. */
 function lengthKeys(type: ElementType): string[] {
   const keys = ["x", "y", "width", "height"];
@@ -103,6 +118,7 @@ function labelOut(tabId: string, meta: TabMeta, doc: LabelDoc) {
     canvas: {
       widthMm: round(dots.width / dots.dotsPerMm),
       heightMm: round(dots.height / dots.dotsPerMm),
+      safeMarginMm: 1,
       layout:
         profile.direction === "left"
           ? "The label lies on its side: x runs along the label's length, y across its width."
@@ -487,7 +503,7 @@ export const TOOLS: Tool[] = [
       if (args.y === undefined) el = { ...el, y: Math.round((dots.height - el.height) / 2) };
       const next = agent.change((d) => ({ ...d, elements: [...d.elements, el] }));
       const { issues } = await render(next);
-      return json({ added: elementOut(el, dots.dotsPerMm), ...issueNote(issues[el.id]), ...(applied.ignored.length && { ignored: applied.ignored }) });
+      return json({ added: elementOut(el, dots.dotsPerMm), ...issueNote(issues[el.id]), ...marginNote(el, dots), ...(applied.ignored.length && { ignored: applied.ignored }) });
     },
   },
   {
@@ -514,7 +530,7 @@ export const TOOLS: Tool[] = [
       const el = keepProportions(applied.el, args, aspect);
       const next = agent.change((d) => ({ ...d, elements: d.elements.map((e) => (e.id === el.id ? el : e)) }));
       const { issues } = await render(next);
-      return json({ updated: elementOut(el, dots.dotsPerMm), ...issueNote(issues[el.id]), ...(applied.ignored.length && { ignored: applied.ignored }) });
+      return json({ updated: elementOut(el, dots.dotsPerMm), ...issueNote(issues[el.id]), ...marginNote(el, dots), ...(applied.ignored.length && { ignored: applied.ignored }) });
     },
   },
   {
@@ -535,14 +551,14 @@ export const TOOLS: Tool[] = [
   {
     name: "arrange_element",
     title: "Arrange element",
-    description: "Move an element in front of or behind others, or line it up with the label's edges or center.",
+    description: "Move an element in front of or behind others, or line it up with the label's center or the edges of its 1 mm safe margin.",
     inputSchema: {
       type: "object",
       properties: {
         ...TAB,
         id: { type: "string" },
         order: { type: "string", enum: ["front", "back", "forward", "backward"] },
-        horizontal: { type: "string", enum: ["left", "center", "right"], description: "Line up with the label's left edge, center or right edge." },
+        horizontal: { type: "string", enum: ["left", "center", "right"], description: "Line up with the safe margin's left edge, the label's center, or the safe margin's right edge." },
         vertical: { type: "string", enum: ["top", "middle", "bottom"] },
       },
       required: ["id"],
@@ -554,20 +570,20 @@ export const TOOLS: Tool[] = [
         if (i < 0) throw new Error(`No element with id "${String(args.id)}".`);
         const dots = canvasSize(d.size, profileFor(d));
         let el = d.elements[i];
-        const h = args.horizontal;
-        const v = args.vertical;
-        if (h === "left") el = { ...el, x: 0 };
-        if (h === "center") el = { ...el, x: Math.round((dots.width - el.width) / 2) };
-        if (h === "right") el = { ...el, x: dots.width - el.width };
-        if (v === "top") el = { ...el, y: 0 };
-        if (v === "middle") el = { ...el, y: Math.round((dots.height - el.height) / 2) };
-        if (v === "bottom") el = { ...el, y: dots.height - el.height };
+        // Edges line up with the safe-margin guide, as snapping in the window does.
+        for (const edge of [args.horizontal, args.vertical]) {
+          if (typeof edge === "string" && ["left", "center", "right", "top", "middle", "bottom"].includes(edge)) {
+            el = { ...el, ...align([el], edge as AlignEdge, safeArea(dots))[el.id] } as LabelElement;
+          }
+        }
         const els = d.elements.filter((_, j) => j !== i);
         const to = { front: els.length, back: 0, forward: Math.min(els.length, i + 1), backward: Math.max(0, i - 1) }[String(args.order)] ?? i;
         els.splice(to, 0, el);
         return { ...d, elements: els };
       });
-      return json({ order: doc.elements.map((e) => e.id), note: "Later elements draw on top." });
+      const dots = canvasSize(doc.size, profileFor(doc));
+      const el = doc.elements.find((e) => e.id === args.id)!;
+      return json({ arranged: elementOut(el, dots.dotsPerMm), ...marginNote(el, dots), order: doc.elements.map((e) => e.id), note: "Later elements draw on top." });
     },
   },
   {

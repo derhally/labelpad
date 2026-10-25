@@ -19,6 +19,7 @@ const INSTRUCTIONS = `LabelPad designs and prints labels on Niimbot D11 and M3 p
 Typical flow: get_status, connect_printer (no arguments reconnects the last printer), new_label or open_label,
 add_element / update_element, preview_label to check the result, then print_label and save_label.
 Sizes and positions are in millimeters on the label as the editor shows it, from its top-left corner.
+Keep everything at least 1 mm inside the label's edges (the safe margin): printers can't print reliably closer to the edge.
 Changes appear live in the LabelPad window and can be undone there.`;
 
 /** Answer the agents' messages until unmounted. */
