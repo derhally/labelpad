@@ -267,11 +267,21 @@ async fn template_delete(app: AppHandle, id: String) -> Result<(), String> {
     std::fs::remove_file(template_path(&app, &id)?).map_err(|e| format!("Couldn't delete the template: {e}"))
 }
 
+/// Whether this install can replace itself. On Linux only the AppImage can;
+/// .deb and .rpm installs are updated by downloading the new package.
+#[tauri::command]
+fn update_supported() -> bool {
+    !cfg!(target_os = "linux") || std::env::var_os("APPIMAGE").is_some()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Printer::default())
         .invoke_handler(tauri::generate_handler![
             scan_start,
@@ -284,7 +294,8 @@ pub fn run() {
             system_fonts,
             templates_list,
             template_save,
-            template_delete
+            template_delete,
+            update_supported
         ])
         .run(tauri::generate_context!())
         .expect("error while running LabelPad");

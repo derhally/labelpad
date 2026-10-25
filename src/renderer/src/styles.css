@@ -367,3 +367,4 @@ textarea:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accen
 .link-button { padding: 0; border: none; background: none; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; }
 .link-button:hover { text-decoration: underline; }
 .numbering { display: flex; flex-direction: column; gap: 6px; }
+.release-notes { max-height: 220px; overflow: auto; white-space: pre-wrap; font-size: 13px; line-height: 1.5; padding: 10px 12px; border-radius: 9px; background: var(--surface-2); }

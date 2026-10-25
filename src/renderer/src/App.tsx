@@ -11,6 +11,7 @@ import { PrintPanel } from "./components/PrintPanel";
 import { RollPanel } from "./components/RollPanel";
 import { SaveTemplateDialog } from "./components/SaveTemplateDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
+import { UpdateDialog } from "./components/UpdateDialog";
 import { TemplateGallery } from "./components/TemplateGallery";
 import { fromTemplate, saveTemplate } from "./editor/templates";
 import { Toolbar } from "./components/Toolbar";
@@ -22,6 +23,7 @@ import { useDocument } from "./editor/useDocument";
 import { DEFAULT_COUNTER, hasCounter } from "./editor/variables";
 import { loadDraft, useLabelFile } from "./editor/useLabelFile";
 import { loadSettings, useSettings } from "./settings/useSettings";
+import { useUpdater } from "./updates/useUpdater";
 import type { LabelDoc } from "./editor/types";
 import { canvasSize, DOTS_PER_MM } from "./printer/label";
 import { usePrinter } from "./printer/usePrinter";
@@ -39,6 +41,7 @@ export function App() {
   const printer = usePrinter();
   const { status, details } = printer;
   const { settings, update: updateSettings } = useSettings();
+  const updater = useUpdater(settings, updateSettings);
   const [initial] = useState(initialDocument);
   const editor = useDocument(initial.doc);
   const { doc } = editor;
@@ -351,7 +354,15 @@ export function App() {
         onSave={async (name) => void (await saveTemplate(name, doc))}
         onClose={() => setSaveTemplateOpen(false)}
       />
-      <SettingsDialog open={settingsOpen} settings={settings} onChange={updateSettings} onClose={() => setSettingsOpen(false)} />
+      <SettingsDialog
+        open={settingsOpen}
+        settings={settings}
+        onChange={updateSettings}
+        onClose={() => setSettingsOpen(false)}
+        update={updater.state}
+        onCheckForUpdates={() => void updater.checkNow(true)}
+      />
+      <UpdateDialog state={updater.state} onInstall={() => void updater.install()} onDismiss={updater.dismiss} />
       <IconPicker open={iconTarget !== null} onPick={pickIcon} onClose={() => setIconTarget(null)} />
     </div>
   );

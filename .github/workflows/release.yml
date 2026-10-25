@@ -63,6 +63,10 @@ jobs:
       - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs the update bundles; the app checks them against the public key in tauri.conf.json.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          # The key has no password, and GitHub doesn't allow an empty secret.
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         with:
           tagName: ${{ inputs.tag || needs.release-please.outputs.tag }}
           releaseName: LabelPad ${{ inputs.tag || needs.release-please.outputs.tag }}
@@ -70,3 +74,6 @@ jobs:
           args: ${{ matrix.args }}
           # package.json has no "tauri" script, which the action runs by default.
           tauriScript: npx tauri
+          # latest.json, which installed apps read to find updates. On Windows, update with the .exe installer.
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true

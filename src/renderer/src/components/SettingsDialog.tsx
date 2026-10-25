@@ -1,5 +1,6 @@
-import { Monitor, Moon, Sun, X } from "lucide-react";
+import { Monitor, Moon, RefreshCw, Sun, X } from "lucide-react";
 import type { Settings, Theme } from "../settings/useSettings";
+import type { UpdateState } from "../updates/useUpdater";
 import { Segmented, Toggle } from "./fields";
 
 type Props = {
@@ -7,6 +8,8 @@ type Props = {
   settings: Settings;
   onChange: (patch: Partial<Settings>) => void;
   onClose: () => void;
+  update: UpdateState;
+  onCheckForUpdates: () => void;
 };
 
 const THEMES: { value: Theme; label: React.ReactNode }[] = [
@@ -15,7 +18,7 @@ const THEMES: { value: Theme; label: React.ReactNode }[] = [
   { value: "dark", label: <><Moon size={14} /> Dark</> },
 ];
 
-export function SettingsDialog({ open, settings, onChange, onClose }: Props) {
+export function SettingsDialog({ open, settings, onChange, onClose, update, onCheckForUpdates }: Props) {
   if (!open) return null;
 
   return (
@@ -56,8 +59,30 @@ export function SettingsDialog({ open, settings, onChange, onClose }: Props) {
               <p className="muted hint">No printer connected yet.</p>
             )}
           </div>
+
+          <div className="field">
+            <span>Updates</span>
+            <Toggle checked={settings.autoUpdate} onChange={(autoUpdate) => onChange({ autoUpdate })}>
+              Check for new versions once a week
+            </Toggle>
+            <div className="settings-row">
+              <span className="muted hint">{updateStatus(update, settings.lastUpdateCheck)}</span>
+              <button className="button ghost" onClick={onCheckForUpdates} disabled={update.step === "checking" || update.step === "downloading"}>
+                <RefreshCw size={14} /> Check now
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+function updateStatus(update: UpdateState, lastCheck: number | null): string {
+  if (update.step === "checking") return "Checking…";
+  if (update.step === "current") return `You have the latest version (${update.version}).`;
+  if (update.step === "available") return `Version ${update.update.version} is available.`;
+  if (update.step === "error") return update.message;
+  if (!lastCheck) return "Not checked yet.";
+  return `Last checked ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(lastCheck)}.`;
 }
