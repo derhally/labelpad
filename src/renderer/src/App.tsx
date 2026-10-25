@@ -6,6 +6,7 @@ import { message, open } from "@tauri-apps/plugin-dialog";
 import { Columns2, FilePlus2, FolderOpen, Plus, Printer, Settings as SettingsIcon, Square, X } from "lucide-react";
 import { ConnectButton, shortName } from "./components/ConnectButton";
 import { RenamePrinterDialog } from "./components/RenamePrinterDialog";
+import { Tooltips } from "./components/Tooltips";
 import { DevicePicker } from "./components/DevicePicker";
 import { LabelEditor, type EditorHandle, type Slots, type TabMeta } from "./components/LabelEditor";
 import { PrinterBadge } from "./components/PrinterBadge";
@@ -421,6 +422,7 @@ export function App() {
         onCheckForUpdates={() => void updater.checkNow(true)}
       />
       <UpdateDialog state={updater.state} onInstall={() => void updater.install()} onDismiss={updater.dismiss} />
+      <Tooltips />
     </div>
   );
 }

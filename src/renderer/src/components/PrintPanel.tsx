@@ -1,4 +1,5 @@
-import { AlertTriangle, Minus, Plus, Printer, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, Check, Loader2, Minus, Plus, Printer, RotateCcw, X } from "lucide-react";
 import type { usePrinter } from "../printer/usePrinter";
 import { Field, NumberInput, Segmented } from "./fields";
 
@@ -8,7 +9,8 @@ type Props = {
   copies: number;
   onDensity: (d: number) => void;
   onCopies: (c: number) => void;
-  onPrint: () => void;
+  /** Resolves true once the labels are printed. */
+  onPrint: () => Promise<boolean>;
   onConnect: () => void;
   /** Set when the label is laid out for another printer than the one connected. */
   mismatch?: { label: string; printer: string; onConvert: () => void };
@@ -23,7 +25,26 @@ function progressPercent(p: { page: number; pagesTotal: number; percent: number;
 }
 
 export function PrintPanel({ printer, density, copies, onDensity, onCopies, onPrint, onConnect, mismatch, numbering }: Props) {
-  const { status, details, heartbeat } = printer;
+  const { status, details, heartbeat, progress } = printer;
+  const printing = status === "printing";
+  // How the last print went, shown on the button for a moment.
+  const [outcome, setOutcome] = useState<"printed" | "failed" | null>(null);
+  useEffect(() => {
+    if (outcome !== "printed") return;
+    const t = setTimeout(() => setOutcome(null), 1800);
+    return () => clearTimeout(t);
+  }, [outcome]);
+  // Ctrl+P prints without the button, so follow the printer's status too.
+  const wasPrinting = useRef(false);
+  useEffect(() => {
+    if (wasPrinting.current && !printing) setOutcome(printer.error ? "failed" : "printed");
+    if (printing) setOutcome(null);
+    wasPrinting.current = printing;
+  }, [printing, printer.error]);
+  const run = async () => {
+    setOutcome(null);
+    await onPrint();
+  };
   const connected = status === "connected" || status === "printing";
   const warning = heartbeat?.lidClosed === false ? "The lid is open." : heartbeat?.paperInserted === false ? "No labels loaded." : null;
   const densities = Array.from({ length: details.densityMax - details.densityMin + 1 }, (_, i) => details.densityMin + i);
@@ -94,17 +115,35 @@ export function PrintPanel({ printer, density, copies, onDensity, onCopies, onPr
         </div>
       )}
 
-      {status === "printing" && printer.progress ? (
-        <div className="progress">
-          <div className="progress-bar" style={{ width: `${progressPercent(printer.progress)}%` }} />
-          <span>{printer.progress.sending ? "Sending to printer…" : `Printing ${printer.progress.page} of ${printer.progress.pagesTotal}…`}</span>
-        </div>
-      ) : (
-        <button className="button primary large" onClick={connected ? onPrint : onConnect} disabled={status === "connecting"}>
-          <Printer size={18} /> {connected ? `Print ${copies > 1 ? `${copies} labels` : "label"}` : "Connect to print"}
-          {connected && <kbd>Ctrl P</kbd>}
-        </button>
-      )}
+      <button
+        className={`button primary large print-button${printing ? " busy" : ""}${outcome ? ` ${outcome}` : ""}`}
+        onClick={printing ? undefined : connected ? () => void run() : onConnect}
+        disabled={status === "connecting"}
+        aria-busy={printing}
+      >
+        {printing && <span className="print-fill" style={{ width: `${progress ? progressPercent(progress) : 0}%` }} />}
+        <span className="print-label">
+          {printing ? (
+            <>
+              <Loader2 size={18} className="spin" />
+              {!progress || progress.sending ? "Sending to printer…" : `Printing ${progress.page} of ${progress.pagesTotal}…`}
+            </>
+          ) : outcome === "printed" ? (
+            <>
+              <Check size={18} /> Printed
+            </>
+          ) : outcome === "failed" ? (
+            <>
+              <RotateCcw size={18} /> Try again
+            </>
+          ) : (
+            <>
+              <Printer size={18} /> {connected ? `Print ${copies > 1 ? `${copies} labels` : "label"}` : "Connect to print"}
+              {connected && <kbd>Ctrl P</kbd>}
+            </>
+          )}
+        </span>
+      </button>
     </div>
   );
 }

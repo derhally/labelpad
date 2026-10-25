@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { message } from "@tauri-apps/plugin-dialog";
-import { LayoutTemplate, Redo2, Save, Undo2 } from "lucide-react";
+import { AlignCenter, AlignVerticalJustifyCenter, ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, Check, Copy, LayoutTemplate, Redo2, Save, Trash2, Undo2 } from "lucide-react";
+import { ContextMenu, type MenuItem } from "./ContextMenu";
+import { bounds, union } from "../editor/arrange";
+import { spell } from "../locale";
 import { MultiSelection } from "./AlignControls";
 import { EditorStage } from "./EditorStage";
 import { IconPicker } from "./IconPicker";
@@ -69,6 +72,8 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
   const setSelectedId = (id: string | null) => setSelectedIds(id ? [id] : []);
   const [issues, setIssues] = useState<RenderIssues>({});
   const [iconTarget, setIconTarget] = useState<IconTarget | null>(null);
+  const [menu, setMenu] = useState<{ ids: string[]; x: number; y: number } | null>(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
   const density = settings.density ?? details.densityDefault;
   const copies = settings.copies;
 
@@ -112,7 +117,7 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
   // labels render once per number and print as separate pages.
   // A label laid out for another printer is converted for the connected one.
   const print = useCallback(async () => {
-    if (status !== "connected") return;
+    if (status !== "connected") return false;
     const now = new Date();
     const job = otherPrinter ? convertDoc(doc, otherPrinter) : doc;
     const size = canvasSize(job.size, profileFor(job));
@@ -130,8 +135,10 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
       } else {
         await printer.print([await render(counter.start)], { density, copies });
       }
+      return true;
     } catch {
       // The print panel shows the error.
+      return false;
     }
   }, [printer, editor, status, density, copies, doc, otherPrinter, numbered, counter]);
 
@@ -231,7 +238,7 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
       const key = e.key.toLowerCase();
       if (mod && key === "s") {
         e.preventDefault();
-        void (e.shiftKey ? file.saveAs() : file.saveFile());
+        void save(e.shiftKey);
       } else if (mod && key === "z" && !typing) {
         e.preventDefault();
         e.shiftKey ? editor.redo() : editor.undo();
@@ -266,10 +273,53 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
     return () => window.removeEventListener("keydown", onKey);
   }, [active, editor, file, doc.elements, selection, duplicate, remove, print, mmStep]);
 
+  const [justSaved, setJustSaved] = useState(false);
+  useEffect(() => {
+    if (!justSaved) return;
+    const t = setTimeout(() => setJustSaved(false), 1400);
+    return () => clearTimeout(t);
+  }, [justSaved]);
+  const save = async (as: boolean) => {
+    if (await (as ? file.saveAs() : file.saveFile())) setJustSaved(true);
+  };
+
+  /** Right-click menu for some items: copy, delete, stacking, and centering on the label. */
+  const menuItems = (ids: string[]): MenuItem[] => {
+    const els = doc.elements.filter((e) => ids.includes(e.id));
+    // Stacking moves each item in turn; going up, start from the topmost so they keep their order.
+    const stack = (to: "up" | "down" | "top" | "bottom") => {
+      const ordered = doc.elements.filter((e) => ids.includes(e.id));
+      (to === "up" || to === "top" ? [...ordered].reverse() : ordered).forEach((e) => editor.reorder(e.id, to));
+    };
+    // Center the items as a group, keeping their spacing.
+    const centre = (edge: "center" | "middle") => {
+      const group = union(els.map(bounds));
+      const label = { left: 0, top: 0, right: dots.width, bottom: dots.height };
+      const target = edge === "center"
+        ? { ...group, left: (label.right - (group.right - group.left)) / 2, right: (label.right + (group.right - group.left)) / 2 }
+        : { ...group, top: (label.bottom - (group.bottom - group.top)) / 2, bottom: (label.bottom + (group.bottom - group.top)) / 2 };
+      const shift = edge === "center" ? target.left - group.left : target.top - group.top;
+      editor.updateMany(Object.fromEntries(els.map((e) => [e.id, edge === "center" ? { x: Math.round(e.x + shift) } : { y: Math.round(e.y + shift) }])));
+    };
+    return [
+      { label: "Duplicate", icon: <Copy size={15} />, shortcut: "Ctrl D", onSelect: duplicate },
+      "separator",
+      { label: "Bring to front", icon: <ArrowUpToLine size={15} />, onSelect: () => stack("top") },
+      { label: "Bring forward", icon: <ArrowUp size={15} />, onSelect: () => stack("up") },
+      { label: "Send backward", icon: <ArrowDown size={15} />, onSelect: () => stack("down") },
+      { label: "Send to back", icon: <ArrowDownToLine size={15} />, onSelect: () => stack("bottom") },
+      "separator",
+      { label: spell("Center horizontally"), icon: <AlignCenter size={15} />, onSelect: () => centre("center") },
+      { label: spell("Center vertically"), icon: <AlignVerticalJustifyCenter size={15} />, onSelect: () => centre("middle") },
+      "separator",
+      { label: "Delete", icon: <Trash2 size={15} />, shortcut: "Del", danger: true, onSelect: remove },
+    ];
+  };
+
   const actions = (
     <>
-      <button className="icon-button" onClick={() => void file.saveFile()} title="Save (Ctrl+S)">
-        <Save size={18} />
+      <button className={`icon-button${justSaved ? " done" : ""}`} onClick={() => void save(false)} title={justSaved ? "Saved" : "Save (Ctrl+S)"}>
+        {justSaved ? <Check size={18} /> : <Save size={18} />}
       </button>
       <button className="icon-button" onClick={() => setSaveTemplateOpen(true)} title="Save as template">
         <LayoutTemplate size={18} />
@@ -362,6 +412,7 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
         onChange={editor.update}
         onGestureStart={editor.checkpoint}
         onEditText={() => document.getElementById("inspector-text")?.focus()}
+        onContextMenu={(ids, x, y) => setMenu({ ids, x, y })}
         onRendered={onRendered}
         clock={clock}
         count={counter.start}
@@ -369,6 +420,7 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
       {active && slots.actions && createPortal(actions, slots.actions)}
       {active && slots.toolbar && createPortal(<Toolbar onAdd={add} />, slots.toolbar)}
       {active && slots.panel && createPortal(panel, slots.panel)}
+      {active && menu && <ContextMenu x={menu.x} y={menu.y} items={menuItems(menu.ids)} onClose={closeMenu} />}
       {active && (
         <>
           <SaveTemplateDialog

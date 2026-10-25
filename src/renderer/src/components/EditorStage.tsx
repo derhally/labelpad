@@ -15,6 +15,8 @@ type Props = {
   onChangeMany: (patches: Record<string, Partial<LabelElement>>, opts?: { transient?: boolean }) => void;
   onGestureStart: () => void;
   onEditText: (id: string) => void;
+  /** Right-click on items: the items it applies to, and where the pointer is. */
+  onContextMenu: (ids: string[], x: number, y: number) => void;
   onRendered: (canvas: HTMLCanvasElement, issues: RenderIssues) => void;
   /** Inset of the safe-margin guide in dots; printers can't print reliably closer to the edge. */
   margin: number;
@@ -34,7 +36,22 @@ const STAGE_PADDING = 96;
 /** A drag-to-select rectangle, in label dots. */
 type Marquee = { x0: number; y0: number; x1: number; y1: number; additive: boolean };
 
-export function EditorStage({ elements, width, height, margin, selectedIds, onSelect, onChange, onChangeMany, onGestureStart, onEditText, onRendered, clock, count }: Props) {
+export function EditorStage({
+  elements,
+  width,
+  height,
+  margin,
+  selectedIds,
+  onSelect,
+  onChange,
+  onChangeMany,
+  onGestureStart,
+  onEditText,
+  onContextMenu,
+  onRendered,
+  clock,
+  count,
+}: Props) {
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -155,7 +172,21 @@ export function EditorStage({ elements, width, height, margin, selectedIds, onSe
   const guideLines = (size: number) => [0, margin, size / 2, size - margin, size].map((d) => d * zoom);
 
   return (
-    <div className="stage" ref={stageRef} onPointerDown={(e) => e.target === e.currentTarget && !e.shiftKey && onSelect([])}>
+    <div
+      className="stage"
+      ref={stageRef}
+      onPointerDown={(e) => e.target === e.currentTarget && !e.shiftKey && onSelect([])}
+      onContextMenu={(e) => {
+        // An item, or the selection's handles (which sit on top of grouped items).
+        const id = (e.target as HTMLElement).closest<HTMLElement>("[data-id]")?.dataset.id;
+        const onHandles = !id && selectedIds.length > 0 && !!(e.target as HTMLElement).closest(".moveable-control-box, .moveable-area");
+        if (!id && !onHandles) return;
+        e.preventDefault();
+        const ids = id && !selectedIds.includes(id) ? [id] : selectedIds;
+        if (id && !selectedIds.includes(id)) onSelect([id]);
+        onContextMenu(ids, e.clientX, e.clientY);
+      }}
+    >
       <div className="label-frame">
         <div className="label-surface" ref={surfaceRef} style={{ width: width * zoom, height: height * zoom }}>
           <canvas ref={canvasRef} className="label-canvas" width={width} height={height} />
@@ -171,6 +202,7 @@ export function EditorStage({ elements, width, height, margin, selectedIds, onSe
                 className={`box${selectedIds.includes(el.id) ? (group.length > 1 ? " selected in-selection" : " selected") : ""}`}
                 style={boxStyle(el)}
                 onMouseDown={(e) => {
+                  if (e.button !== 0) return;
                   const native = e.nativeEvent;
                   const isSelected = selectedIds.includes(el.id);
                   // Shift (or Ctrl/Cmd) adds or removes an item without moving anything.

@@ -244,12 +244,34 @@ textarea:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accen
 .toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
 
-.segmented { display: flex; padding: 3px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; }
+.segmented { position: relative; display: flex; padding: 3px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; }
 .segmented button {
-  flex: 1; height: 30px; border: none; border-radius: 7px; background: transparent;
-  color: var(--muted); font: inherit; font-weight: 600; cursor: pointer;
+  position: relative; flex: 1; height: 30px; border: none; border-radius: 7px; background: transparent;
+  color: var(--muted); font: inherit; font-weight: 600; cursor: pointer; transition: color 0.15s;
 }
-.segmented button.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgb(0 0 0 / 15%); }
+.segmented button.active { color: var(--text); }
+.segmented-pill {
+  position: absolute; top: 3px; bottom: 3px; left: 0; border-radius: 7px; background: var(--surface); box-shadow: 0 1px 3px rgb(0 0 0 / 15%);
+  transition: transform 0.22s cubic-bezier(0.3, 0.7, 0.2, 1), width 0.22s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+.detent-slider { position: relative; padding-bottom: 6px; }
+.detent-slider input { width: 100%; }
+.detents { position: absolute; left: 8px; right: 8px; bottom: 0; height: 4px; pointer-events: none; }
+.detents span { position: absolute; top: 0; width: 2px; height: 4px; margin-left: -1px; border-radius: 1px; background: var(--border); }
+.detents span.on { background: var(--accent); }
+
+.tooltip {
+  position: fixed; z-index: 5001; max-width: 240px; padding: 5px 9px; border-radius: 7px; pointer-events: none;
+  background: var(--text); color: var(--surface); font-size: 12px; font-weight: 550; line-height: 1.35;
+  transform: translateX(-50%); animation: tip-in 0.12s ease-out;
+}
+.tooltip.above { transform: translate(-50%, -100%); }
+@keyframes tip-in { from { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .segmented-pill, .tooltip, .print-button .print-fill { transition: none !important; animation: none !important; }
+}
 
 .stepper { display: flex; align-items: center; gap: 4px; width: fit-content; padding: 3px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; }
 .stepper span { min-width: 36px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -260,6 +282,12 @@ textarea:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accen
 .notice.error { background: var(--error-bg); color: var(--error); }
 .notice .icon-button { width: 22px; height: 22px; color: inherit; }
 
+.print-button { position: relative; overflow: hidden; }
+.print-button.busy { cursor: default; }
+.print-button.busy, .print-button.busy:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 55%, var(--surface-2)); }
+.print-fill { position: absolute; inset: 0 auto 0 0; background: var(--accent); transition: width 0.25s ease-out; }
+.print-label { position: relative; display: inline-flex; align-items: center; gap: 8px; }
+.icon-button.done { color: var(--accent); }
 .progress { position: relative; height: 46px; border-radius: 9px; background: var(--surface-2); overflow: hidden; display: grid; place-items: center; font-weight: 550; }
 .progress-bar { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--accent) 30%, transparent); transition: width 0.2s; }
 .progress span { position: relative; }
@@ -268,7 +296,8 @@ textarea:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accen
 .dialog { width: min(420px, calc(100% - 32px)); background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); padding: 20px; animation: rise 0.18s; }
 .dialog-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
 .split-button { position: relative; display: inline-flex; }
-.split-button > .button:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.split-button > .button:first-child { min-width: 170px; max-width: 220px; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.split-button > .button:first-child > :last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .split-toggle { padding: 0 8px; border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 1px; }
 .split-toggle.ghost { margin-left: -1px; }
 .menu {
@@ -280,6 +309,11 @@ textarea:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accen
   background: none; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer;
 }
 .menu button:hover { background: var(--surface-2); }
+.context-menu { position: fixed; z-index: 5000; top: auto; right: auto; min-width: 210px; animation: tip-in 0.1s ease-out; }
+.menu button span { flex: 1; }
+.menu button kbd { margin-left: 12px; background: var(--surface-2); color: var(--muted); }
+.menu button.danger { color: var(--error); }
+.menu hr { margin: 4px 6px; border: none; border-top: 1px solid var(--border); }
 .printer-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 4px; font-size: 13px; color: var(--muted); }
 .printer-line strong { color: var(--text); font-weight: 600; }
 .device-model { margin-left: 6px; font-weight: 400; font-size: 12px; }
