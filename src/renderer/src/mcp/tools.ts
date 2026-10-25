@@ -119,13 +119,15 @@ function labelOut(tabId: string, meta: TabMeta, doc: LabelDoc) {
       widthMm: round(dots.width / dots.dotsPerMm),
       heightMm: round(dots.height / dots.dotsPerMm),
       safeMarginMm: 1,
+      safeArea: (({ left, top, right, bottom }) => ({ x: round(left / dots.dotsPerMm), y: round(top / dots.dotsPerMm), right: round(right / dots.dotsPerMm), bottom: round(bottom / dots.dotsPerMm) }))(safeArea(dots)),
+      guide: "Keep every element inside safeArea (1 mm in from each edge, the dashed guide in the editor); printers can't print reliably closer to the edge.",
       layout:
         profile.direction === "left"
           ? "The label lies on its side: x runs along the label's length, y across its width."
           : "x runs across the label's width, y along its length.",
     },
     ...(doc.counter && { counter: doc.counter }),
-    elements: doc.elements.map((el) => elementOut(el, dots.dotsPerMm)),
+    elements: doc.elements.map((el) => ({ ...elementOut(el, dots.dotsPerMm), ...marginNote(el, dots) })),
   };
 }
 
@@ -434,7 +436,7 @@ export const TOOLS: Tool[] = [
   {
     name: "get_label",
     title: "Get label",
-    description: "The label's size, printer and every element with its properties (lengths in mm).",
+    description: "The label's size, printer, safe area (the 1 mm margin guide) and every element with its properties (lengths in mm).",
     inputSchema: { type: "object", properties: TAB },
     annotations: { readOnlyHint: true },
     run: async (args, host) => {
@@ -479,7 +481,7 @@ export const TOOLS: Tool[] = [
     name: "add_element",
     title: "Add to label",
     description:
-      "Add text, a date/time, an image, a barcode, a QR code, an icon or a shape. Leave out what you don't need: defaults fit the label. Returns the element (with its id) and any problem, such as an invalid barcode value.",
+      "Add text, a date/time, an image, a barcode, a QR code, an icon or a shape. Leave out what you don't need: defaults fit the label. Keep it inside the label's safeArea (1 mm from each edge, see get_label); you get a warning if it crosses. Returns the element (with its id) and any problem, such as an invalid barcode value.",
     inputSchema: { type: "object", properties: { ...TAB, type: { type: "string", enum: TYPES }, ...ELEMENT_PROPS }, required: ["type"] },
     run: async (args, host) => {
       const { agent } = target(host, args);
