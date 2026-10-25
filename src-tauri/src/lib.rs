@@ -353,11 +353,13 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
-            // The plugin has already restored the saved state by the time setup runs.
+            // The plugin has already restored the saved state by the time setup runs. The window
+            // starts hidden (tauri.conf.json) so it only appears once it is in its final place.
             if let Some(window) = app.get_webview_window("main") {
                 if let Err(e) = keep_on_screen(&window) {
                     log::warn!("could not keep the window on screen: {e}");
                 }
+                window.show()?;
             }
             Ok(())
         })
