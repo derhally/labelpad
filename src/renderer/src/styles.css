@@ -399,7 +399,7 @@ textarea:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accen
 .font-row { display: flex; gap: 8px; }
 .font-row .font-picker { flex: 1; min-width: 0; }
 .font-row .button { height: 38px; padding: 0 10px; }
-.dialog.font-browser { width: min(860px, calc(100% - 32px)); display: flex; flex-direction: column; max-height: calc(100vh - 48px); }
+.dialog.font-browser { width: min(860px, calc(100% - 32px)); height: min(720px, calc(100vh - 48px)); display: flex; flex-direction: column; }
 .font-browser-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .font-browser-controls .search { margin-bottom: 0; }
 .font-browser-controls .search input { height: 36px; }
@@ -412,7 +412,7 @@ textarea:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accen
 .chip span { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .chip.active { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 .chip.active span { color: inherit; opacity: 0.8; }
-.font-cards { flex: 1; min-height: 200px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; align-content: start; padding: 2px; }
+.font-cards { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; align-content: start; padding: 2px; }
 .font-card {
   display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; text-align: left; cursor: pointer;
   border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; content-visibility: auto; contain-intrinsic-size: auto 92px;
