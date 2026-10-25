@@ -35,6 +35,7 @@ export type TextStyle = {
   autoFit: boolean;
   bold: boolean;
   italic: boolean;
+  underline: boolean;
   align: TextAlign;
   valign: VerticalAlign;
   /** White text on a black box. */

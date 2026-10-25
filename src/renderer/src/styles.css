@@ -250,6 +250,7 @@ textarea:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accen
   color: var(--muted); font: inherit; font-weight: 600; cursor: pointer; transition: color 0.15s;
 }
 .segmented button.active { color: var(--text); }
+.segmented.toggles button.active { background: var(--surface); box-shadow: 0 1px 3px rgb(0 0 0 / 15%); }
 .segmented-pill {
   position: absolute; top: 3px; bottom: 3px; left: 0; border-radius: 7px; background: var(--surface); box-shadow: 0 1px 3px rgb(0 0 0 / 15%);
   transition: transform 0.22s cubic-bezier(0.3, 0.7, 0.2, 1), width 0.22s cubic-bezier(0.3, 0.7, 0.2, 1);

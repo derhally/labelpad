@@ -1,6 +1,6 @@
 import {
   AlignCenter, AlignEndHorizontal, AlignLeft, AlignRight, AlignStartHorizontal, AlignCenterHorizontal, ArrowDownToLine, ArrowUpToLine, Bold, ChevronDown, ChevronUp, Circle, Copy,
-  ImageUp, Italic, LayoutGrid, Minus, Square, Trash2, TriangleAlert,
+  ImageUp, Italic, LayoutGrid, Minus, Square, Trash2, TriangleAlert, Underline,
 } from "lucide-react";
 import { ICONS } from "../editor/icons";
 import { fitFontSize } from "../editor/render";
@@ -348,12 +348,16 @@ function TextStyleFields({
             { value: "right", label: <AlignRight size={16} />, title: "Align right" },
           ]}
         />
-        <div className="segmented">
-          <button className={el.bold ? "active" : ""} title="Bold" onClick={() => onChange({ bold: !el.bold })}>
+        {/* Independent on/off buttons, so each lights up on its own rather than with a sliding highlight. */}
+        <div className="segmented toggles">
+          <button className={el.bold ? "active" : ""} title="Bold" aria-pressed={el.bold} onClick={() => onChange({ bold: !el.bold })}>
             <Bold size={16} />
           </button>
-          <button className={el.italic ? "active" : ""} title="Italic" onClick={() => onChange({ italic: !el.italic })}>
+          <button className={el.italic ? "active" : ""} title="Italic" aria-pressed={el.italic} onClick={() => onChange({ italic: !el.italic })}>
             <Italic size={16} />
+          </button>
+          <button className={el.underline ? "active" : ""} title="Underline" aria-pressed={el.underline} onClick={() => onChange({ underline: !el.underline })}>
+            <Underline size={16} />
           </button>
         </div>
       </div>
