@@ -36,14 +36,18 @@
       <p>On this page</p>
       <a href="#install">Install</a>
       <a href="#connect">Connect the printer</a>
+      <a href="#start">The start screen</a>
       <a href="#editor">The editor</a>
       <a href="#elements">What you can add</a>
+      <a href="#qr">QR codes</a>
       <a href="#dates">Dates and times</a>
       <a href="#numbering">Numbered labels</a>
       <a href="#layout">Selecting and aligning</a>
+      <a href="#tabs">Several labels at once</a>
       <a href="#templates">Templates and files</a>
       <a href="#printing">Printing and label rolls</a>
       <a href="#settings">Settings</a>
+      <a href="#agents">AI agents (MCP)</a>
       <a href="#shortcuts">Keyboard shortcuts</a>
       <a href="#troubleshooting">Troubleshooting</a>
       <a href="#source">Build from source</a>
@@ -63,40 +67,78 @@
       <p>The first time you connect, macOS asks for permission to use Bluetooth. Allow it.</p>
       <h3>Linux</h3>
       <p>Use the <code>.AppImage</code> on any distribution (make it executable with <code>chmod +x</code>), or install the <code>.deb</code> or <code>.rpm</code>. Bluetooth goes through BlueZ, so the Bluetooth service must be running and your user needs access to it, usually by being in the <code>bluetooth</code> group.</p>
+      <p>The installers register <code>.labelpad</code> files with LabelPad, so double-clicking a label in your file manager opens it in the app.</p>
 
       <h2 id="connect">Connect the printer</h2>
       <ol class="steps">
         <li>Turn the printer on. You don't need to pair it in your system's Bluetooth settings.</li>
-        <li>Click <strong>Connect printer</strong> in the top right. Printers nearby appear in a list, and the one you used last is marked.</li>
-        <li>Pick your printer. The header shows its name and battery, and the right panel shows the loaded label roll.</li>
+        <li>Click <strong>Connect printer</strong> in the top right and pick your printer from the list.</li>
+        <li>The header shows its name and battery, and the right panel shows the loaded label roll.</li>
       </ol>
-      <img class="shot" src="screenshots/connect.png" alt="The printer list after clicking Connect printer" loading="lazy">
+      <p>From then on, the button says <strong>Connect</strong> with your printer's name. Click it and LabelPad looks for that printer and connects as soon as it appears. If it can't find it, the printer list opens instead.</p>
+      <p>The arrow beside the button has two more options. <strong>Switch printer</strong> opens the list so you can pick a different one. The printer you used last stays pinned at the top and the others keep the order they were found in, so nothing moves just as you click. <strong>Rename</strong> gives your printer a name of your own, such as <em>Kitchen D11</em>, which then shows on the button, the status badge and in the list.</p>
+      <img class="shot" src="screenshots/connect.png" alt="The printer list, with the last-used printer pinned at the top" loading="lazy">
+
+      <h2 id="start">The start screen</h2>
+      <p>LabelPad opens on a start screen. <strong>New label</strong> starts a blank label in the size you used last, and the chips under <strong>Other sizes</strong> start one in another common size. <strong>Start from a template</strong> and <strong>Open a file</strong> do what they say, and <strong>Continue editing</strong> appears when labels from last time are still open.</p>
+      <p>On the right are the 10 labels you opened or saved most recently, newest first, each with a preview, its size and when it last changed. Search them by name, or use the <strong>×</strong> on a card to take it off the list (the file itself is left alone). Files that were moved or deleted drop off by themselves.</p>
+      <img class="shot" src="screenshots/start.png" alt="The start screen with recent labels" loading="lazy">
+      <p>The house icon in the header brings the start screen back at any time. To skip it at launch, untick <strong>Show this screen at launch</strong>, or turn it off in <a href="#settings">Settings</a>.</p>
 
       <h2 id="editor">The editor</h2>
       <p>The window has three parts. On the left are the things you can add. In the middle is the label, drawn at the printer's real resolution (8 dots per millimetre on the D11, about 12 on the M3), so the preview is exactly what prints. On the right, the panel changes with what you've selected: the label's size when nothing is selected, or the settings of the item you clicked. The print controls sit at the bottom of that panel.</p>
-      <img class="shot" src="screenshots/date-time.png" alt="The editor with a date element selected and its settings on the right" loading="lazy">
+      <img class="shot" src="screenshots/editor-light.png" alt="The editor with a text item selected and its settings on the right" loading="lazy">
       <p>Drag items to move them, pull the handles to resize, and use the round handle to rotate. Items snap to the label's edges, its center, and each other. Undo and redo cover every change.</p>
-      <p>With nothing selected, the right panel sets the label size. Choose the printer the label is for (D11 or M3), then pick one of its common sizes or type your own width and length in millimetres. Connecting a different printer offers to convert the label, and it's converted automatically when it prints.</p>
+      <p>A faint dashed line marks 1&nbsp;mm in from the label's edge. Printers don't print reliably right at the edge, so keep anything important inside it. Items snap to it too.</p>
+      <p>Right-click an item for <strong>Duplicate</strong>, its stacking order (bring to front, bring forward, send backward, send to back), <strong>Center horizontally</strong>, <strong>Center vertically</strong> and <strong>Delete</strong>.</p>
+      <img class="shot" src="screenshots/context-menu.png" alt="The right-click menu on a text item" loading="lazy">
+      <h3>Zoom</h3>
+      <p>The bar under the label sets how big it shows. <strong>Fit</strong> fills the space available, <strong>Actual size</strong> shows it at about the size it prints, and the slider and buttons zoom in between. You can also hold <kbd>Ctrl</kbd> and scroll, or pinch on a trackpad. The zoom you pick is remembered.</p>
+      <h3>Label size and printer</h3>
+      <p>With nothing selected, the right panel sets the label size. Pick one of the common sizes or type your own width and length in millimetres. While a printer is connected, the label is laid out for that printer; otherwise choose the printer it's for (D11 or M3). If a label was laid out for the other printer, a <strong>Convert</strong> button switches it, and it's converted automatically when it prints.</p>
+      <h3>Drop or paste</h3>
+      <p>Drag an image file onto the window, or paste an image you copied, and it becomes an image item. Text, or a <code>.txt</code> file, becomes a text box. Dropping a <code>.labelpad</code> file opens it.</p>
+      <p>LabelPad remembers the window's size and position, and whether it was maximized. If that spot is no longer on a screen, say after unplugging a monitor, it brings the window back onto one.</p>
 
       <h2 id="elements">What you can add</h2>
       <table>
         <thead><tr><th>Item</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td><strong>Text</strong></td><td>Any font installed on your computer, bold or italic, aligned left, center or right and top, middle or bottom. <em>Fit text to box</em> sizes it to fill the box, and <em>White on black</em> inverts it.</td></tr>
+          <tr><td><strong>Text</strong></td><td>Any font installed on your computer, bold, italic or underlined, aligned left, center or right and top, middle or bottom. <em>Fit text to box</em> sizes it to fill the box, and <em>White on black</em> inverts it. The size slider always shows the size in millimetres; moving it turns fitting off.</td></tr>
           <tr><td><strong>Date</strong></td><td>The date and/or time at the moment you print. See <a href="#dates">Dates and times</a>.</td></tr>
-          <tr><td><strong>Image</strong></td><td>Any picture from your computer. <em>Dither</em> keeps shading in photos; <em>threshold</em> gives clean edges for logos, with a slider for how dark counts as black.</td></tr>
+          <tr><td><strong>Image</strong></td><td>Any picture from your computer. <em>Photo</em> keeps shading with dithering; <em>Logo</em> gives crisp black and white edges, with a slider for how dark counts as black.</td></tr>
           <tr><td><strong>Barcode</strong></td><td>Code 128, Code 39, EAN-13, EAN-8, UPC and ITF-14, with or without the number underneath.</td></tr>
-          <tr><td><strong>QR code</strong></td><td>Any text or link. Keep it short on a 12&nbsp;mm label so it scans reliably.</td></tr>
-          <tr><td><strong>Icon</strong></td><td>A searchable set of clean line icons: boxes, food, cables, tools, pets and more.</td></tr>
+          <tr><td><strong>QR code</strong></td><td>Links, text, email, Wi-Fi, phone numbers, text messages, contacts and map locations. See <a href="#qr">QR codes</a>.</td></tr>
+          <tr><td><strong>Icon</strong></td><td>The whole <a href="https://lucide.dev">Lucide</a> set, about 1,900 clean line icons. The picker opens on popular label icons; search by name to find the rest.</td></tr>
           <tr><td><strong>Shape</strong></td><td>Rectangles, ellipses and lines, outlined or filled, for borders and dividers.</td></tr>
         </tbody>
       </table>
+      <img class="shot" src="screenshots/icons.png" alt="The icon picker searching for box" loading="lazy">
       <h3>Choosing a font</h3>
       <p>The font list in the text panel shows popular fonts first, then everything else installed. Click <strong>Browse</strong> to see every font with your label's text as the preview, filtered by style.</p>
       <img class="shot" src="screenshots/fonts.png" alt="The font browser" loading="lazy">
 
+      <h2 id="qr">QR codes</h2>
+      <p>Choose what the code is for under <strong>Type</strong>, then fill in its fields. LabelPad builds the code in the form phones expect, so scanning it does the right thing.</p>
+      <table>
+        <thead><tr><th>Type</th><th>Scanning it</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Link</strong></td><td>Opens the web address.</td></tr>
+          <tr><td><strong>Text</strong></td><td>Shows the text.</td></tr>
+          <tr><td><strong>Email</strong></td><td>Starts an email with the address, subject and message filled in.</td></tr>
+          <tr><td><strong>Wi-Fi network</strong></td><td>Joins the network. Choose WPA, WEP or none, and tick <em>Hidden network</em> if it doesn't broadcast its name. Anyone who can see the label can read the password.</td></tr>
+          <tr><td><strong>Phone call</strong></td><td>Offers to call the number.</td></tr>
+          <tr><td><strong>Text message (SMS)</strong></td><td>Starts a text to the number with your message.</td></tr>
+          <tr><td><strong>Contact card</strong></td><td>Offers to save a contact with name, phone, email, company, job title, website and address.</td></tr>
+          <tr><td><strong>Map location</strong></td><td>Opens a map at the latitude and longitude. Long-press a place in a map app to copy them.</td></tr>
+        </tbody>
+      </table>
+      <p>LabelPad tells you how many squares the code has and how big each one prints, and warns you when they're too small to scan reliably. If it does, make the code bigger, put less in it, or lower the error correction. Small labels hold less than you'd think: a Wi-Fi code on a 12&nbsp;mm label is right at the limit.</p>
+      <img class="shot" src="screenshots/qr.png" alt="A Wi-Fi QR code with its network name, security and password" loading="lazy">
+
       <h2 id="dates">Dates and times</h2>
       <p>A date item fills itself in when you print. Choose <strong>Date + time</strong>, <strong>Date</strong> or <strong>Time</strong>, then a date format. <em>System format</em> follows your computer's region settings. Times print as hours and minutes, in 12-hour or 24-hour form.</p>
+      <img class="shot" src="screenshots/date-time.png" alt="The editor with a date item selected and its settings on the right" loading="lazy">
       <p><strong>Text before</strong> adds words such as <code>Made</code> or <code>Use by</code>, and <strong>Add days</strong> moves the date forward, which is how the Food container template prints a use-by date three days out.</p>
       <p>To make your own format, type a pattern with these tokens. Anything else prints as written.</p>
       <table>
@@ -122,23 +164,58 @@
 
       <h2 id="layout">Selecting and aligning</h2>
       <p>Shift-click items to select several, or drag a box around them from an empty part of the label. Drag any selected item to move them all together.</p>
-      <p>The panel then offers alignment. <strong>To each other</strong> lines the items up with the outer edges of the selection; <strong>To the label</strong> lines them up with the label itself. <strong>Distribute</strong> spaces items evenly, which needs three or more when aligning to each other. A single item can be centered on the label from its own panel.</p>
-      <img class="shot" src="screenshots/align.png" alt="Align and distribute controls" loading="lazy">
+      <p>The panel then offers alignment. <strong>To each other</strong> lines the items up with the outer edges of the selection; <strong>To the label</strong> lines them up with the label itself. <strong>Distribute</strong> spaces items evenly, which needs three or more when aligning to each other. A single item can be centered on the label from its own panel or its right-click menu.</p>
+      <img class="shot" src="screenshots/align.png" alt="Two items selected with align and distribute controls, in dark mode" loading="lazy">
+
+      <h2 id="tabs">Several labels at once</h2>
+      <p>Every label you open or start gets its own tab, with its own file, undo history and selection. A dot on a tab means it has unsaved changes. Click a tab to switch, or press <kbd>Ctrl</kbd>+<kbd>Tab</kbd> for the next one. Close one with its <strong>×</strong>, a middle-click or <kbd>Ctrl</kbd>+<kbd>W</kbd>. The tabs you had open come back the next time you start the app.</p>
+      <p>The two buttons at the right of the tab bar switch between one label at a time and every label side by side. Side by side, click a label to edit it.</p>
+      <img class="shot" src="screenshots/tabs.png" alt="Three labels open side by side" loading="lazy">
 
       <h2 id="templates">Templates and files</h2>
-      <p><strong>New</strong> (<kbd>Ctrl</kbd>+<kbd>N</kbd>) opens the template gallery: a blank label, the built-in templates, and any label you saved with <strong>Save as template</strong>.</p>
+      <p><strong>New</strong> (<kbd>Ctrl</kbd>+<kbd>N</kbd>) opens the template gallery: a blank label, a shortcut to open a saved label, the built-in templates, and any label you saved with <strong>Save as template</strong>.</p>
       <img class="shot" src="screenshots/templates.png" alt="The template gallery" loading="lazy">
-      <p>Labels save as <code>.labelpad</code> files, in <code>Documents\LabelPad</code> unless you pick another folder in Settings, that you can keep, share and open again. The label you were working on reopens when you start the app, even if you never saved it. You can turn that off in Settings.</p>
+      <p>Labels save as <code>.labelpad</code> files that you can keep, share and open again. New labels save to a <code>LabelPad</code> folder in your Documents, which LabelPad creates for you. After that, Save and Open start in the folder you last saved to. In <a href="#settings">Settings</a> you can pick a different folder, or always start in the save folder.</p>
+      <p>The labels you were working on reopen when you start the app, even if you never saved them. You can turn that off in Settings.</p>
 
       <h2 id="printing">Printing and label rolls</h2>
-      <p>Choose a <strong>darkness</strong> from 1 to 3 and the number of <strong>copies</strong>, then click <strong>Print</strong> or press <kbd>Ctrl</kbd>+<kbd>P</kbd>. If labels come out faint, raise the darkness; if fine detail bleeds together, lower it.</p>
+      <p>Choose a <strong>darkness</strong> from 1 to 3 and the number of <strong>copies</strong>, then click <strong>Print</strong> or press <kbd>Ctrl</kbd>+<kbd>P</kbd>. The button fills up as labels are sent and printed, then says <em>Printed</em>, or <em>Try again</em> if something went wrong. If labels come out faint, raise the darkness; if fine detail bleeds together, lower it.</p>
       <p>Genuine Niimbot rolls carry an RFID tag. Once connected, the app shows how many labels are left on the roll. The tag doesn't say how big the labels are, so the first time you load a type of roll the app asks once and remembers. After that, if your label doesn't match the roll, it offers to switch.</p>
 
       <h2 id="settings">Settings</h2>
-      <p>The gear icon in the top right opens Settings: light, dark or system theme, whether to reopen your last label at startup, and updates. Darkness, copies, label size and your printer are remembered automatically.</p>
+      <p>The gear icon in the top right opens Settings. Darkness, copies, label size, zoom and your printer are remembered automatically; the rest is here.</p>
+      <table>
+        <thead><tr><th>Section</th><th>What it sets</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Appearance</strong></td><td>Follow your system, or always use light or dark.</td></tr>
+          <tr><td><strong>Startup</strong></td><td>Whether to reopen the labels you were working on, and whether to show the start screen.</td></tr>
+          <tr><td><strong>Saving</strong></td><td>The folder new labels save to (<strong>Change…</strong>, or <strong>Use default</strong> to go back to Documents\LabelPad), and whether Save and Open start in the last folder you saved to.</td></tr>
+          <tr><td><strong>Printer</strong></td><td>The printer quick connect looks for. <strong>Forget</strong> clears it, so the next Connect opens the printer list.</td></tr>
+          <tr><td><strong>Updates</strong></td><td>The weekly check for new versions, and <strong>Check now</strong>.</td></tr>
+        </tbody>
+      </table>
+      <p>The bottom of the window shows the version of LabelPad you're running, with a link to the release notes.</p>
       <img class="shot" src="screenshots/settings.png" alt="The settings dialog in dark mode" loading="lazy">
       <h3>Updates</h3>
-      <p>Once a week LabelPad checks for a new version. When there is one, it shows what's new and asks: <strong>Update now</strong> downloads it and restarts the app, and <strong>Later</strong> asks again next week. Use <strong>Check now</strong> in Settings to look straight away, or turn the weekly check off. On Linux, the AppImage updates itself; if you installed the <code>.deb</code> or <code>.rpm</code>, the app links you to the new package instead.</p>
+      <p>Once a week LabelPad checks for a new version. When there is one, it shows what's new and asks: <strong>Update now</strong> downloads it and restarts the app, and <strong>Later</strong> asks again next week. Nothing installs without asking. On Linux, the AppImage updates itself; if you installed the <code>.deb</code> or <code>.rpm</code>, the app links you to the new package instead.</p>
+
+      <h2 id="agents">AI agents (MCP)</h2>
+      <p>LabelPad is also an <a href="https://modelcontextprotocol.io">MCP</a> server, so an AI agent such as Claude can connect your printer, design a label and print it the way you would. The agent works in the open LabelPad window: you see each change as it's made and can undo it. If LabelPad isn't running, the agent starts it.</p>
+      <p>Add LabelPad to your agent's MCP settings with the path to the app and the <code>--mcp</code> argument. For Claude Desktop, that's <code>claude_desktop_config.json</code>:</p>
+      <pre><code>{
+  "mcpServers": {
+    "labelpad": {
+      "command": "C:\\Users\\you\\AppData\\Local\\LabelPad\\labelpad.exe",
+      "args": ["--mcp"]
+    }
+  }
+}</code></pre>
+      <ul>
+        <li><strong>Windows:</strong> the installer puts the app at <code>%LOCALAPPDATA%\LabelPad\labelpad.exe</code>.</li>
+        <li><strong>macOS:</strong> the command is <code>/Applications/LabelPad.app/Contents/MacOS/labelpad</code>.</li>
+        <li><strong>Claude Code:</strong> run <code>claude mcp add labelpad -- "&lt;path to labelpad&gt;" --mcp</code>.</li>
+      </ul>
+      <p>The agent can find and connect printers (with no name, it reconnects the last one), start labels blank or from a template, add and change text, dates, images, barcodes, QR codes, icons and shapes in millimetres, look at the exact image that will print to check its work, and open, save and print <code>.labelpad</code> files. It keeps things inside the safe margin the way snapping does for you. Try asking: <em>"Make a 12×40 label that says Spices with a jar icon, and print two."</em></p>
 
       <h2 id="shortcuts">Keyboard shortcuts</h2>
       <p>On a Mac, use <kbd>⌘</kbd> where this says <kbd>Ctrl</kbd>.</p>
@@ -148,11 +225,14 @@
           <tr><td><kbd>Ctrl</kbd>+<kbd>N</kbd></td><td>New label from a template</td></tr>
           <tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Open a label</td></tr>
           <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td><td>Save / save as</td></tr>
-          <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>Undo / redo</td></tr>
+          <tr><td><kbd>Ctrl</kbd>+<kbd>W</kbd></td><td>Close the tab</td></tr>
+          <tr><td><kbd>Ctrl</kbd>+<kbd>Tab</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>Next / previous tab</td></tr>
+          <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>Undo / redo (<kbd>Ctrl</kbd>+<kbd>Y</kbd> also redoes)</td></tr>
           <tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Select everything</td></tr>
           <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Duplicate</td></tr>
           <tr><td><kbd>Delete</kbd></td><td>Remove</td></tr>
           <tr><td>Arrow keys</td><td>Nudge by 1 dot (with <kbd>Shift</kbd>, 1 mm)</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + scroll</td><td>Zoom</td></tr>
           <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Print</td></tr>
           <tr><td><kbd>Esc</kbd></td><td>Deselect</td></tr>
         </tbody>
@@ -161,12 +241,16 @@
       <h2 id="troubleshooting">Troubleshooting</h2>
       <h3>The printer doesn't appear in the list</h3>
       <p>Make sure it's on and not connected to your phone; a Niimbot printer talks to one device at a time. Close the Niimbot phone app or turn off your phone's Bluetooth, then try again. Check that Bluetooth is on in your computer's settings.</p>
+      <h3>Connect looks for the wrong printer</h3>
+      <p>Quick connect looks for the printer you used last. Pick another with <strong>Switch printer</strong> in the menu beside Connect, or <strong>Forget</strong> the last one in Settings.</p>
       <h3>It connects, then drops</h3>
       <p>Move closer, and charge the printer if the battery is low. Disconnect and reconnect from the header.</p>
       <h3>The print is shifted or cut off</h3>
-      <p>Check that the label size in the editor matches the roll you loaded. The roll panel warns you when they differ.</p>
+      <p>Check that the label size in the editor matches the roll you loaded. The roll panel warns you when they differ. Keep text and codes inside the dashed safe-margin line.</p>
+      <h3>A QR code won't scan</h3>
+      <p>Read the note under the code's settings. If it says the squares are too small, make the code bigger, put less in it, or lower the error correction.</p>
       <h3>Still stuck?</h3>
-      <p><a href="https://github.com/derhally/labelpad/issues/new">Open an issue on GitHub</a> with your printer model, your operating system, and what happened.</p>
+      <p><a href="https://github.com/derhally/labelpad/issues/new">Open an issue on GitHub</a> with your printer model, your operating system, the LabelPad version from Settings, and what happened.</p>
 
       <h2 id="source">Build from source</h2>
       <p>You need Node.js 22 or newer, <a href="https://rustup.rs">Rust</a> (stable), and the <a href="https://tauri.app/start/prerequisites/">Tauri prerequisites</a> for your system. On Linux that includes <code>libwebkit2gtk-4.1-dev</code> and <code>libdbus-1-dev</code>.</p>
