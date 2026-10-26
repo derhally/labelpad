@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/derhally/labelpad/compare/v0.6.0...v0.7.0) (2026-10-26)
+
+
+### Features
+
+* fill to the guides, and snapping that lines up with the guides and other items ([#29](https://github.com/derhally/labelpad/issues/29)) ([b96e90f](https://github.com/derhally/labelpad/commit/b96e90f78933c946bc3085c86c8d79dd7bfddeee))
+
+
+### Bug Fixes
+
+* keep Date elements when opening a saved label ([#27](https://github.com/derhally/labelpad/issues/27)) ([81ac53b](https://github.com/derhally/labelpad/commit/81ac53bcad01b35ac047acfd912c7378dbe05c39))
+
 ## [0.6.0](https://github.com/derhally/labelpad/compare/v0.5.0...v0.6.0) (2026-10-26)
 
 
