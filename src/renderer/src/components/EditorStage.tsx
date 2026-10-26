@@ -208,11 +208,11 @@ export function EditorStage({
     );
   };
 
-  // Snap to the label's edges, its middle, the safe-margin guide, and the edges
-  // and centres of other items, with equal gaps between items too. Guidelines
-  // are measured from the label's corner, hence the snap container. Hold Alt
-  // to move or resize freely.
-  const guideLines = (size: number) => [0, margin, size / 2, size - margin, size].map((d) => d * zoom);
+  // Snap to the safe-margin guides (not the label's outer edge, which nothing
+  // should sit on), the label's middle, and the edges and centres of other
+  // items, with equal gaps between items too. Guidelines are measured from the
+  // label's corner, hence the snap container. Hold Alt to move or resize freely.
+  const guideLines = (size: number) => [margin, size / 2, size - margin].map((d) => d * zoom);
   const snapProps = {
     snappable: !freeMove,
     snapContainer: surfaceRef.current,
