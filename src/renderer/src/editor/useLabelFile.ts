@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { ask, message, save } from "@tauri-apps/plugin-dialog";
+import { rememberRecent } from "./recent";
 import { FILE_EXTENSION, FILE_FILTERS, fileTitle, parseLabel, serializeLabel } from "./labelFile";
 import type { LabelDoc } from "./types";
 
@@ -81,6 +82,7 @@ export function useLabelFile(editor: Editor, opts: { tabId: string; initialPath:
     await invoke("label_write", { path: target, contents: serializeLabel(current) });
     setPath(target);
     setSaved(current);
+    rememberRecent(target);
   }, []);
 
   const write = useCallback(

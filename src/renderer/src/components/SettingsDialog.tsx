@@ -48,6 +48,9 @@ export function SettingsDialog({ open, settings, onChange, onClose, update, onCh
             <Toggle checked={settings.restoreLast} onChange={(restoreLast) => onChange({ restoreLast })}>
               Reopen the label I was working on
             </Toggle>
+            <Toggle checked={settings.showStart} onChange={(showStart) => onChange({ showStart })}>
+              Show the start screen with recent labels
+            </Toggle>
           </Section>
 
           <Section title="Printer" description="Quick connect uses the last printer you printed with.">

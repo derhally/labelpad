@@ -124,6 +124,17 @@ async fn label_write(path: String, contents: String) -> Result<(), String> {
     tokio::fs::rename(&tmp, &path).await.map_err(|e| format!("Couldn't save {path}: {e}"))
 }
 
+/// When each label file was last modified (ms since 1970), or None if it's gone.
+#[tauri::command]
+async fn label_modified(paths: Vec<String>) -> Vec<Option<f64>> {
+    let mut out = Vec::with_capacity(paths.len());
+    for path in paths {
+        let modified = tokio::fs::metadata(&path).await.ok().filter(|m| m.is_file()).and_then(|m| m.modified().ok());
+        out.push(modified.and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_millis() as f64));
+    }
+    out
+}
+
 /// An installed font family and its style, for the font picker.
 #[derive(Serialize)]
 struct FontFamily {
@@ -377,6 +388,7 @@ pub fn run() {
             printer_print,
             label_read,
             label_write,
+            label_modified,
             system_fonts,
             templates_list,
             template_save,

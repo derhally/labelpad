@@ -17,6 +17,8 @@ export type Settings = {
   printer: PrinterId;
   /** Reopen the label you were working on when the app starts. */
   restoreLast: boolean;
+  /** Open on the start screen: new label, templates and recent labels. */
+  showStart: boolean;
   lastPrinter: { id: string; name: string } | null;
   /** Names you've given printers, keyed by their Bluetooth id. */
   printerNames: Record<string, string>;
@@ -38,6 +40,7 @@ const DEFAULTS: Settings = {
   labelSize: { widthMm: 12, lengthMm: 40 },
   printer: "d11",
   restoreLast: true,
+  showStart: true,
   lastPrinter: null,
   printerNames: {},
   rollSizes: {},
