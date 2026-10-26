@@ -27,7 +27,8 @@ type Props = {
   onReorder: (to: "up" | "down" | "top" | "bottom") => void;
   onPickIcon: () => void;
   onReplaceImage: () => void;
-  label: { width: number; height: number; dotsPerMm: number };
+  /** The label in dots, its resolution, and the safe-margin guide's inset. */
+  label: { width: number; height: number; dotsPerMm: number; margin: number };
   onArrange: (patches: Record<string, Partial<LabelElement>>) => void;
 };
 

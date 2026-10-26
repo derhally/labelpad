@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { message } from "@tauri-apps/plugin-dialog";
-import { AlignCenter, AlignVerticalJustifyCenter, ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, Check, Copy, LayoutTemplate, Redo2, Save, Trash2, Undo2 } from "lucide-react";
+import { AlignCenter, AlignVerticalJustifyCenter, ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, Check, Copy, LayoutTemplate, Maximize, Redo2, Save, Trash2, Undo2 } from "lucide-react";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
-import { bounds, union } from "../editor/arrange";
+import { bounds, fill, safeArea, union } from "../editor/arrange";
 import { spell } from "../locale";
 import { MultiSelection } from "./AlignControls";
 import { EditorStage } from "./EditorStage";
@@ -101,6 +101,8 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
   const profile = profileFor(doc);
   const dots = canvasSize(doc.size, profile);
   const mmStep = Math.round(profile.dotsPerMm);
+  /** The label and its safe-margin guide, 1 mm in. */
+  const guides = { ...dots, margin: mmStep };
   const selection = doc.elements.filter((e) => selectedIds.includes(e.id));
   const selected = selection.length === 1 ? selection[0] : null;
   const connected = status === "connected" || status === "printing";
@@ -351,6 +353,9 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
       "separator",
       { label: spell("Center horizontally"), icon: <AlignCenter size={15} />, onSelect: () => centre("center") },
       { label: spell("Center vertically"), icon: <AlignVerticalJustifyCenter size={15} />, onSelect: () => centre("middle") },
+      ...(els.length === 1
+        ? [{ label: "Fill to guides", icon: <Maximize size={15} />, onSelect: () => editor.updateMany({ [els[0].id]: fill(els[0], safeArea(dots, mmStep), "both") }) }]
+        : []),
       "separator",
       { label: "Delete", icon: <Trash2 size={15} />, shortcut: "Del", danger: true, onSelect: remove },
     ];
@@ -389,11 +394,11 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
             onReorder={(to) => editor.reorder(selected.id, to)}
             onPickIcon={() => setIconTarget({ mode: "replace", id: selected.id })}
             onReplaceImage={() => void addImage(selected.id)}
-            label={dots}
+            label={guides}
             onArrange={editor.updateMany}
           />
         ) : selection.length > 1 ? (
-          <MultiSelection els={selection} label={dots} onApply={editor.updateMany} onDuplicate={duplicate} onDelete={remove} />
+          <MultiSelection els={selection} label={guides} onApply={editor.updateMany} onDuplicate={duplicate} onDelete={remove} />
         ) : (
           <LabelSettings size={doc.size} profile={profile} onChange={editor.setSize} onPrinter={setPrinter} connectedPrinter={connectedPrinter} />
         )}

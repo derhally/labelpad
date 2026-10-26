@@ -88,9 +88,10 @@
       <h2 id="editor">The editor</h2>
       <p>The window has three parts. On the left are the things you can add. In the middle is the label, drawn at the printer's real resolution (8 dots per millimetre on the D11, about 12 on the M3), so the preview is exactly what prints. On the right, the panel changes with what you've selected: the label's size when nothing is selected, or the settings of the item you clicked. The print controls sit at the bottom of that panel.</p>
       <img class="shot" src="screenshots/editor-light.png" alt="The editor with a text item selected and its settings on the right" loading="lazy">
-      <p>Drag items to move them, pull the handles to resize, and use the round handle to rotate. Items snap to the label's edges, its center, and each other. Undo and redo cover every change.</p>
-      <p>A faint dashed line marks 1&nbsp;mm in from the label's edge. Printers don't print reliably right at the edge, so keep anything important inside it. Items snap to it too.</p>
-      <p>Right-click an item for <strong>Duplicate</strong>, its stacking order (bring to front, bring forward, send backward, send to back), <strong>Center horizontally</strong>, <strong>Center vertically</strong> and <strong>Delete</strong>.</p>
+      <p>Drag items to move them, pull the handles to resize, and use the round handle to rotate. Undo and redo cover every change.</p>
+      <p>While you move or resize, items snap to the dashed safe-margin guide, the label's center, and the edges and centers of other items, and they snap to equal gaps between items. A pink line shows what they snapped to. Hold <kbd>Alt</kbd> (<kbd>Option</kbd> on a Mac) to move freely.</p>
+      <p>A faint dashed line marks 1&nbsp;mm in from the label's edge. Printers don't print reliably right at the edge, so keep anything important inside it. Under <strong>Position on label</strong>, the edge buttons move an item to these guides, and <strong>Fill</strong>, <strong>Width</strong> and <strong>Height</strong> stretch it to fill the label up to them. QR codes, icons and images keep their shape and grow as large as fits.</p>
+      <p>Right-click an item for <strong>Duplicate</strong>, its stacking order (bring to front, bring forward, send backward, send to back), <strong>Center horizontally</strong>, <strong>Center vertically</strong>, <strong>Fill to guides</strong> and <strong>Delete</strong>.</p>
       <img class="shot" src="screenshots/context-menu.png" alt="The right-click menu on a text item" loading="lazy">
       <h3>Zoom</h3>
       <p>The bar under the label sets how big it shows. <strong>Fit</strong> fills the space available, <strong>Actual size</strong> shows it at about the size it prints, and the slider and buttons zoom in between. You can also hold <kbd>Ctrl</kbd> and scroll, or pinch on a trackpad. The zoom you pick is remembered.</p>
@@ -233,6 +234,7 @@
           <tr><td><kbd>Delete</kbd></td><td>Remove</td></tr>
           <tr><td>Arrow keys</td><td>Nudge by 1 dot (with <kbd>Shift</kbd>, 1 mm)</td></tr>
           <tr><td><kbd>Ctrl</kbd> + scroll</td><td>Zoom</td></tr>
+          <tr><td>Hold <kbd>Alt</kbd> while dragging</td><td>Move or resize without snapping</td></tr>
           <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Print</td></tr>
           <tr><td><kbd>Esc</kbd></td><td>Deselect</td></tr>
         </tbody>

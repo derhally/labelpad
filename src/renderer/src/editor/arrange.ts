@@ -1,8 +1,41 @@
-import type { LabelElement } from "./types";
+import { keepsAspect, type LabelElement } from "./types";
 
 export type Box = { left: number; top: number; right: number; bottom: number };
 export type AlignEdge = "left" | "center" | "right" | "top" | "middle" | "bottom";
+export type FillAxis = "both" | "width" | "height";
 type Patches = Record<string, Partial<LabelElement>>;
+
+/** Inside the safe-margin guide, `margin` dots in from each edge of the label. */
+export function safeArea(label: { width: number; height: number }, margin: number): Box {
+  return { left: margin, top: margin, right: label.width - margin, bottom: label.height - margin };
+}
+
+/**
+ * Resize an element so its footprint fills `area` across, down, or both, and
+ * centre it there. Elements that keep their aspect (QR codes, icons, images)
+ * grow as large as fits instead. Rotation snaps to the nearest quarter turn,
+ * since a tilted box can't fill a rectangle.
+ */
+export function fill(el: LabelElement, area: Box, axis: FillAxis): Partial<LabelElement> {
+  const rotation = (((Math.round(el.rotation / 90) * 90) % 360) + 360) % 360;
+  const sideways = rotation % 180 === 90;
+  // Current footprint, and the space to fill.
+  const [cw, ch] = sideways ? [el.height, el.width] : [el.width, el.height];
+  const [aw, ah] = [area.right - area.left, area.bottom - area.top];
+  let [tw, th] = [axis === "height" ? cw : aw, axis === "width" ? ch : ah];
+  if (keepsAspect(el)) {
+    const s = Math.min(aw / cw, ah / ch);
+    [tw, th] = [cw * s, ch * s];
+  }
+  // Centre on the filled axes; keep the item where it is on the other one.
+  const b = bounds(el);
+  const cx = axis === "height" && !keepsAspect(el) ? (b.left + b.right) / 2 : (area.left + area.right) / 2;
+  const cy = axis === "width" && !keepsAspect(el) ? (b.top + b.bottom) / 2 : (area.top + area.bottom) / 2;
+  const [w, h] = sideways ? [th, tw] : [tw, th];
+  const width = Math.max(1, Math.floor(w));
+  const height = Math.max(1, Math.floor(h));
+  return { x: Math.round(cx - width / 2), y: Math.round(cy - height / 2), width, height, rotation };
+}
 
 /** The element's footprint on the label, including rotation. */
 export function bounds(el: LabelElement): Box {

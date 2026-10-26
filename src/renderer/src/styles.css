@@ -465,6 +465,8 @@ textarea:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accen
 .align-row { display: flex; justify-content: space-between; padding: 3px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; }
 .align-row .icon-button { width: 34px; height: 30px; }
 .distribute { display: grid; gap: 6px; }
+.fill-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.fill-row .button { justify-content: center; padding-inline: 6px; }
 .distribute .button { justify-content: flex-start; }
 .safe-margin { position: absolute; pointer-events: none; border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); }
 .marquee { position: absolute; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; }

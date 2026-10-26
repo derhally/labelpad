@@ -1,9 +1,9 @@
 import { useState } from "react";
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween,
-  AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, Copy, Trash2,
+  AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, Copy, Maximize, MoveHorizontal, MoveVertical, Trash2,
 } from "lucide-react";
-import { align, bounds, distribute, union, type AlignEdge, type Box } from "../editor/arrange";
+import { align, bounds, distribute, fill, safeArea, union, type AlignEdge, type Box } from "../editor/arrange";
 import type { LabelElement } from "../editor/types";
 import { spell } from "../locale";
 import { Segmented } from "./fields";
@@ -12,28 +12,31 @@ type Patches = Record<string, Partial<LabelElement>>;
 
 type Props = {
   els: LabelElement[];
-  label: { width: number; height: number };
+  /** The label in dots, and the safe-margin guide's inset. */
+  label: { width: number; height: number; margin: number };
   onApply: (patches: Patches) => void;
 };
 
 /** Tooltips: [aligning to each other, aligning to the label]. */
 const EDGES: { edge: AlignEdge; icon: typeof AlignStartVertical; titles: [string, string] }[] = [
-  { edge: "left", icon: AlignStartVertical, titles: ["Align left edges", "Move to the label's left edge"] },
+  { edge: "left", icon: AlignStartVertical, titles: ["Align left edges", "Move to the left guide"] },
   { edge: "center", icon: AlignCenterVertical, titles: [spell("Align centers horizontally"), spell("Center horizontally on the label")] },
-  { edge: "right", icon: AlignEndVertical, titles: ["Align right edges", "Move to the label's right edge"] },
-  { edge: "top", icon: AlignStartHorizontal, titles: ["Align top edges", "Move to the label's top edge"] },
+  { edge: "right", icon: AlignEndVertical, titles: ["Align right edges", "Move to the right guide"] },
+  { edge: "top", icon: AlignStartHorizontal, titles: ["Align top edges", "Move to the top guide"] },
   { edge: "middle", icon: AlignCenterHorizontal, titles: [spell("Align centers vertically"), spell("Center vertically on the label")] },
-  { edge: "bottom", icon: AlignEndHorizontal, titles: ["Align bottom edges", "Move to the label's bottom edge"] },
+  { edge: "bottom", icon: AlignEndHorizontal, titles: ["Align bottom edges", "Move to the bottom guide"] },
 ];
 
 /**
  * Align and distribute. With one element it lines up with the label; with
- * several, with each other (the selection's bounds) or with the label.
+ * several, with each other (the selection's bounds) or with the label. On the
+ * label, edges line up with the safe-margin guide, where snapping puts them.
+ * One element can also be stretched to fill the guides.
  */
 export function AlignControls({ els, label, onApply }: Props) {
   const [relativeTo, setRelativeTo] = useState<"selection" | "label">("selection");
   const toLabel = els.length === 1 || relativeTo === "label";
-  const labelBox: Box = { left: 0, top: 0, right: label.width, bottom: label.height };
+  const labelBox: Box = safeArea(label, label.margin);
   const target = toLabel ? labelBox : union(els.map(bounds));
   // Spreading needs two fixed ends: the label's edges, or the outer two of three or more.
   const canDistribute = toLabel ? els.length >= 2 : els.length >= 3;
@@ -57,6 +60,19 @@ export function AlignControls({ els, label, onApply }: Props) {
           </button>
         ))}
       </div>
+      {els.length === 1 && (
+        <div className="fill-row">
+          <button className="button ghost" title="Grow to fill the label up to the guides" onClick={() => onApply({ [els[0].id]: fill(els[0], labelBox, "both") })}>
+            <Maximize size={15} /> Fill
+          </button>
+          <button className="button ghost" title="Stretch across the label, guide to guide" onClick={() => onApply({ [els[0].id]: fill(els[0], labelBox, "width") })}>
+            <MoveHorizontal size={15} /> Width
+          </button>
+          <button className="button ghost" title="Stretch down the label, guide to guide" onClick={() => onApply({ [els[0].id]: fill(els[0], labelBox, "height") })}>
+            <MoveVertical size={15} /> Height
+          </button>
+        </div>
+      )}
       {els.length > 1 && (
         <div className="distribute">
           <button
