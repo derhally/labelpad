@@ -32,27 +32,37 @@ Turn on the printer, click **Connect printer**, and pick it from the list. You d
 
 Add text, dates, images, barcodes, QR codes, icons and shapes from the left toolbar, then drag, resize and rotate them on the label. Everything snaps to the label edges, its center and other elements. The preview is the exact 1-bit image that's sent to the printer.
 
-- **Text** can use any font installed on your computer, aligned left, center or right and top, middle or bottom. "Browse" shows every font with your label's text, filtered by style (sans serif, serif, monospace, handwriting, display).
+- **Text** can use any font installed on your computer, bold, italic or underlined, aligned left, center or right and top, middle or bottom. "Browse" shows every font with your label's text, filtered by style (sans serif, serif, monospace, handwriting, display).
 - **Date** prints the date and/or time when the label is printed: date + time, date only, or time only. Dates use a format you pick (or your own pattern such as `DD/MM/YYYY`), and times are 12- or 24-hour. "Add days" makes use-by labels.
-- **Files**: labels save as `.labelpad` files (JSON). The label you were working on reopens when the app starts; turn that off in Settings.
+- **QR codes** have a type (link, text, email, Wi-Fi, phone call, SMS, contact card, map location) with its own fields, and LabelPad builds the payload phones expect. The panel shows how big each square prints and warns when it's too small to scan.
+- **Icons**: the picker opens on popular label icons and searches all ~1,900 [Lucide](https://lucide.dev) icons by name.
+- **Safe margin**: a dashed line 1 mm in from the edge marks where printing is reliable, and items snap to it. Right-click an item for duplicate, stacking order, centering and delete.
+- **Start screen**: at launch, start a new label, pick a template, open a file, or reopen one of the 10 most recently modified labels (with thumbnails and search). It can be turned off in Settings.
+- **Tabs**: each open label gets a tab with its own file, undo history and selection; Ctrl+W closes one, Ctrl+Tab switches, and the open tabs come back on the next start. A side-by-side view shows every label at once.
+- **Files**: labels save as `.labelpad` files (JSON), to `Documents\LabelPad` unless you choose another folder in Settings > Saving; after that, Save and Open start in the folder you last saved to. The installers register `.labelpad` so labels open from the file manager. Images and text can be dropped or pasted onto the label.
 - **Templates**: New (Ctrl+N) offers a blank label, built-in templates, and any label you saved with "Save as template". Templates live in the app's data folder.
 - **Align and distribute**: with several items selected, line up their edges or centers with each other or with the label, or space them evenly. A single item can be aligned to the label from its panel.
 - **Numbered labels**: put `{count}` in text, a barcode or a QR code (`{count:3}` pads to 001). Printing 3 copies gives 1, 2, 3; the print panel sets the start number and step, and the next print carries on. The counter is saved with the label.
 - **Label rolls**: genuine Niimbot rolls carry an RFID tag. When connected, the app shows how many labels are left and uses the roll's label type. The tag doesn't include the size, so the first time a roll type is loaded the app asks for its size and remembers it; after that it offers to switch your label to that size.
 - **Updates**: once a week the app checks GitHub releases for a newer version and asks before installing it (Settings has "Check now" and an off switch). Windows, macOS and the Linux AppImage update in place; .deb and .rpm installs get a link to the new package. Release builds are signed with the key in the `TAURI_SIGNING_PRIVATE_KEY` secret, and the app checks them against the public key in `tauri.conf.json`.
-- **Settings** (gear icon): light, dark or system theme. Darkness, copies, label size and the last printer are remembered.
+- **Printers**: Connect quick-connects to the last printer; the menu beside it has Switch printer and Rename, so a printer can have a name of your own. While a printer is connected, labels are laid out for it, with a Convert button for labels made for the other model.
+- **Window**: the window's size, position and maximized state are remembered (and pulled back on screen if a monitor is gone). The zoom bar under the label has Fit, Actual size, a slider and Ctrl+scroll.
+- **Settings** (gear icon): appearance, startup (reopen labels, start screen), saving folder, the quick-connect printer, and updates, with the running version and a link to the release notes. Darkness, copies, label size, zoom and the last printer are remembered.
 
 | Shortcut | Action |
 | --- | --- |
 | Ctrl+N | New label from a template |
 | Ctrl+O | Open a label |
 | Ctrl+S / Ctrl+Shift+S | Save / save as |
-| Ctrl+Z / Ctrl+Shift+Z | Undo / redo |
+| Ctrl+W | Close the tab |
+| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab |
+| Ctrl+Z / Ctrl+Shift+Z (or Ctrl+Y) | Undo / redo |
 | Shift-click, or drag on an empty spot | Select several items |
 | Ctrl+A | Select everything |
 | Ctrl+D | Duplicate |
 | Delete | Remove |
 | Arrow keys | Nudge 1 dot (Shift: 1 mm) |
+| Ctrl + scroll | Zoom |
 | Ctrl+P | Print |
 | Esc | Deselect |
 
@@ -105,7 +115,7 @@ On macOS the command is `/Applications/LabelPad.app/Contents/MacOS/labelpad`. Fo
 
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org) (`feat:`, `fix:`, `docs:`…). [release-please](https://github.com/googleapis/release-please) keeps a release pull request open with the next version and changelog. Merging it tags the release, and the Release workflow builds installers for Windows (.exe, .msi), macOS (Apple silicon .dmg) and Linux (.AppImage, .deb, .rpm) and attaches them to it. The version lives in `package.json`; `tauri.conf.json` reads it from there and release-please updates `Cargo.toml`.
 
-The website in `docs/` is plain HTML and deploys to GitHub Pages on every push to main. To refresh its screenshots, run the app's web UI (`npm run dev:web`) and capture at 1360×820.
+The website in `docs/` is plain HTML and deploys to GitHub Pages on every push to main. To refresh its screenshots, run the app's web UI (`npm run dev:web`) in a browser with the Tauri backend stubbed out, and capture at 1360×820 with a device scale factor of 2.
 
 ## Roadmap
 
