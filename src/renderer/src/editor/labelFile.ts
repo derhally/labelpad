@@ -9,7 +9,7 @@ const OLD_FORMAT = "niimbot-studio-label";
 export const FILE_EXTENSION = "labelpad";
 export const FILE_FILTERS = [{ name: "LabelPad label", extensions: [FILE_EXTENSION] }];
 
-const TYPES: ElementType[] = ["text", "image", "barcode", "qr", "icon", "shape"];
+const TYPES: ElementType[] = ["text", "datetime", "image", "barcode", "qr", "icon", "shape"];
 
 export function serializeLabel(doc: LabelDoc): string {
   return JSON.stringify({ format: FORMAT, ...doc }, null, 2);
