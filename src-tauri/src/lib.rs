@@ -124,6 +124,17 @@ async fn label_write(path: String, contents: String) -> Result<(), String> {
     tokio::fs::rename(&tmp, &path).await.map_err(|e| format!("Couldn't save {path}: {e}"))
 }
 
+/// When each label file was last modified (ms since 1970), or None if it's gone.
+#[tauri::command]
+async fn label_modified(paths: Vec<String>) -> Vec<Option<f64>> {
+    let mut out = Vec::with_capacity(paths.len());
+    for path in paths {
+        let modified = tokio::fs::metadata(&path).await.ok().filter(|m| m.is_file()).and_then(|m| m.modified().ok());
+        out.push(modified.and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_millis() as f64));
+    }
+    out
+}
+
 /// An installed font family and its style, for the font picker.
 #[derive(Serialize)]
 struct FontFamily {
@@ -227,6 +238,20 @@ fn templates_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     Ok(dir)
 }
 
+/// Documents/LabelPad, where labels are saved unless you pick another folder. Linux without
+/// an XDG documents folder uses ~/LabelPad.
+fn labels_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    let paths = app.path();
+    let dir = paths.document_dir().or_else(|_| paths.home_dir()).map_err(|e| e.to_string())?.join("LabelPad");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Couldn't create the labels folder {}: {e}", dir.display()))?;
+    Ok(dir)
+}
+
+#[tauri::command]
+fn labels_folder(app: AppHandle) -> Result<String, String> {
+    labels_dir(&app).map(|d| d.to_string_lossy().into_owned())
+}
+
 /// Template ids are file names, so keep them to one safe path component.
 fn template_path(app: &AppHandle, id: &str) -> Result<std::path::PathBuf, String> {
     if id.is_empty() || id.contains(['/', '\\', ':']) || id.starts_with('.') {
@@ -239,9 +264,15 @@ fn template_path(app: &AppHandle, id: &str) -> Result<std::path::PathBuf, String
 async fn templates_list(app: AppHandle) -> Result<Vec<Template>, String> {
     let mut out = Vec::new();
     for entry in std::fs::read_dir(templates_dir(&app)?).map_err(|e| e.to_string())?.flatten() {
-        let path = entry.path();
-        // .niimbot is what templates were saved as before the rename.
-        if path.extension().is_some_and(|e| e == "labelpad" || e == "niimbot") {
+        let mut path = entry.path();
+        // Templates were saved as .niimbot before the rename; move them over so they're kept.
+        if path.extension().is_some_and(|e| e == "niimbot") {
+            let renamed = path.with_extension("labelpad");
+            if !renamed.exists() && std::fs::rename(&path, &renamed).is_ok() {
+                path = renamed;
+            }
+        }
+        if path.extension().is_some_and(|e| e == "labelpad") {
             if let (Some(id), Ok(contents)) = (path.file_stem().and_then(|s| s.to_str()), std::fs::read_to_string(&path)) {
                 out.push(Template { id: id.to_string(), contents });
             }
@@ -275,7 +306,7 @@ async fn template_delete(app: AppHandle, id: String) -> Result<(), String> {
 struct OpenedFiles(std::sync::Mutex<Vec<String>>);
 
 fn is_label_file(path: &std::path::Path) -> bool {
-    path.is_file() && path.extension().is_some_and(|e| e.eq_ignore_ascii_case("labelpad") || e.eq_ignore_ascii_case("niimbot"))
+    path.is_file() && path.extension().is_some_and(|e| e.eq_ignore_ascii_case("labelpad"))
 }
 
 /// Take the label files waiting to be opened. Later ones arrive as `open-files` events.
@@ -361,6 +392,10 @@ pub fn run() {
                 }
                 window.show()?;
             }
+            // The installer makes the labels folder on Windows; this covers other installs.
+            if let Err(e) = labels_dir(app.handle()) {
+                log::warn!("{e}");
+            }
             Ok(())
         })
         .manage(Printer::default())
@@ -377,6 +412,8 @@ pub fn run() {
             printer_print,
             label_read,
             label_write,
+            label_modified,
+            labels_folder,
             system_fonts,
             templates_list,
             template_save,

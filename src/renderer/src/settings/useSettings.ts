@@ -17,6 +17,8 @@ export type Settings = {
   printer: PrinterId;
   /** Reopen the label you were working on when the app starts. */
   restoreLast: boolean;
+  /** Open on the start screen: new label, templates and recent labels. */
+  showStart: boolean;
   lastPrinter: { id: string; name: string } | null;
   /** Names you've given printers, keyed by their Bluetooth id. */
   printerNames: Record<string, string>;
@@ -27,6 +29,11 @@ export type Settings = {
   /** When releases were last checked (ms since epoch). */
   lastUpdateCheck: number | null;
   zoom: Zoom;
+  /** Folder labels are saved to; null for Documents\LabelPad. */
+  saveFolder: string | null;
+  /** Start Save and Open in the folder last saved to, instead of the save folder. */
+  rememberLastFolder: boolean;
+  lastFolder: string | null;
 };
 
 const KEY = "labelpad.settings";
@@ -38,12 +45,16 @@ const DEFAULTS: Settings = {
   labelSize: { widthMm: 12, lengthMm: 40 },
   printer: "d11",
   restoreLast: true,
+  showStart: true,
   lastPrinter: null,
   printerNames: {},
   rollSizes: {},
   autoUpdate: true,
   lastUpdateCheck: null,
   zoom: "fit",
+  saveFolder: null,
+  rememberLastFolder: true,
+  lastFolder: null,
 };
 
 export function loadSettings(): Settings {

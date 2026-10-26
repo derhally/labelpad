@@ -1,7 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { getVersion } from "@tauri-apps/api/app";
+import { open as pickFolder } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { ExternalLink, Monitor, Moon, Printer, RefreshCw, Sun, X } from "lucide-react";
+import { defaultLabelsFolder } from "../editor/folders";
+import { ExternalLink, FolderOpen, Monitor, Moon, Printer, RefreshCw, Sun, X } from "lucide-react";
 import type { Settings, Theme } from "../settings/useSettings";
 import { RELEASES_URL, type UpdateState } from "../updates/useUpdater";
 import { Segmented, Toggle } from "./fields";
@@ -26,6 +28,16 @@ export function SettingsDialog({ open, settings, onChange, onClose, update, onCh
   useEffect(() => {
     getVersion().then(setVersion, () => setVersion(null));
   }, []);
+  const [defaultFolder, setDefaultFolder] = useState<string | null>(null);
+  useEffect(() => {
+    if (open) defaultLabelsFolder().then(setDefaultFolder, () => setDefaultFolder(null));
+  }, [open]);
+
+  /** Pick a new save folder. Saves start there until you save somewhere else. */
+  const chooseFolder = async () => {
+    const chosen = await pickFolder({ directory: true, defaultPath: settings.saveFolder ?? defaultFolder ?? undefined });
+    if (typeof chosen === "string") onChange({ saveFolder: chosen, lastFolder: null });
+  };
 
   if (!open) return null;
 
@@ -48,9 +60,33 @@ export function SettingsDialog({ open, settings, onChange, onClose, update, onCh
             <Toggle checked={settings.restoreLast} onChange={(restoreLast) => onChange({ restoreLast })}>
               Reopen the label I was working on
             </Toggle>
+            <Toggle checked={settings.showStart} onChange={(showStart) => onChange({ showStart })}>
+              Show the start screen with recent labels
+            </Toggle>
           </Section>
 
-          <Section title="Printer" description="Quick connect uses the last printer you printed with.">
+          <Section title="Saving" description="Where new labels are saved.">
+            <div className="settings-row">
+              <span className="settings-path" title={settings.saveFolder ?? defaultFolder ?? undefined}>
+                {settings.saveFolder ?? defaultFolder ?? "Documents\\LabelPad"}
+              </span>
+              <span className="settings-row-buttons">
+                {settings.saveFolder && (
+                  <button className="button ghost" onClick={() => onChange({ saveFolder: null, lastFolder: null })}>
+                    Use default
+                  </button>
+                )}
+                <button className="button ghost" onClick={() => void chooseFolder()}>
+                  <FolderOpen size={14} /> Change…
+                </button>
+              </span>
+            </div>
+            <Toggle checked={settings.rememberLastFolder} onChange={(rememberLastFolder) => onChange({ rememberLastFolder })}>
+              Start in the last folder I saved to
+            </Toggle>
+          </Section>
+
+          <Section title="Printer"description="Quick connect uses the last printer you printed with.">
             {settings.lastPrinter ? (
               <div className="settings-row">
                 <span>

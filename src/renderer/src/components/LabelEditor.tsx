@@ -22,6 +22,7 @@ import { newId, type ElementType, type LabelDoc, type LabelElement } from "../ed
 import { useDocument } from "../editor/useDocument";
 import { DEFAULT_COUNTER, hasCounter } from "../editor/variables";
 import { useLabelFile, type Draft } from "../editor/useLabelFile";
+import { startFolder } from "../editor/folders";
 import type { Settings } from "../settings/useSettings";
 import { canvasSize, convertDoc, printerForModel, PRINTERS, profileFor, type PrinterId } from "../printer/label";
 import type { usePrinter } from "../printer/usePrinter";
@@ -81,7 +82,12 @@ export function LabelEditor({ tabId, initial, active, split, slots, printer, set
   const { status, details } = printer;
   const editor = useDocument(initial.doc);
   const { doc } = editor;
-  const file = useLabelFile(editor, { tabId, initialPath: initial.path, initialDirty: initial.dirty });
+  const file = useLabelFile(editor, {
+    tabId,
+    initialPath: initial.path,
+    initialDirty: initial.dirty,
+    folders: { start: () => startFolder(settings), saved: (lastFolder) => updateSettings({ lastFolder }) },
+  });
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const setSelectedId = (id: string | null) => setSelectedIds(id ? [id] : []);

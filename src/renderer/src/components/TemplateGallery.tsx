@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { FolderOpen, Plus, Trash2, X } from "lucide-react";
 import { ask } from "@tauri-apps/plugin-dialog";
-import { renderLabel } from "../editor/render";
 import { builtInTemplates, deleteTemplate, userTemplates, type Template } from "../editor/templates";
 import type { LabelDoc } from "../editor/types";
-import { canvasSize, convertDoc, profileFor } from "../printer/label";
+import { useThumbnail } from "../editor/thumbnail";
+import { convertDoc, profileFor } from "../printer/label";
 
 type Props = {
   open: boolean;
@@ -116,19 +116,4 @@ function TemplateCard({ template, onPick, onDelete }: { template: Template; onPi
       )}
     </div>
   );
-}
-
-/** The label rendered as it would print, for the card preview. */
-function useThumbnail(doc: LabelDoc): string | null {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let live = true;
-    const { width, height } = canvasSize(doc.size, profileFor(doc));
-    const canvas = document.createElement("canvas");
-    renderLabel(canvas, width, height, doc.elements).then(() => live && setUrl(canvas.toDataURL()));
-    return () => {
-      live = false;
-    };
-  }, [doc]);
-  return url;
 }

@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { message, open } from "@tauri-apps/plugin-dialog";
-import { Columns2, FilePlus2, FolderOpen, Plus, Printer, Settings as SettingsIcon, Square, X } from "lucide-react";
+import { Columns2, FilePlus2, FolderOpen, House, Plus, Printer, Settings as SettingsIcon, Square, X } from "lucide-react";
 import { ConnectButton, shortName } from "./components/ConnectButton";
 import { RenamePrinterDialog } from "./components/RenamePrinterDialog";
 import { Tooltips } from "./components/Tooltips";
@@ -13,10 +13,13 @@ import { LabelEditor, type EditorHandle, type Slots, type TabMeta } from "./comp
 import { PrinterBadge } from "./components/PrinterBadge";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { UpdateDialog } from "./components/UpdateDialog";
+import { StartScreen } from "./components/StartScreen";
 import { TemplateGallery } from "./components/TemplateGallery";
 import { fromTemplate } from "./editor/templates";
 import { starterDoc } from "./editor/defaults";
 import { FILE_FILTERS } from "./editor/labelFile";
+import { startFolder } from "./editor/folders";
+import { rememberRecent } from "./editor/recent";
 import { newId } from "./editor/types";
 import { forgetDraft, loadDraft, readLabel, type Draft } from "./editor/useLabelFile";
 import { loadSettings, useSettings } from "./settings/useSettings";
@@ -76,6 +79,8 @@ export function App() {
   const [split, setSplit] = useState(session.split);
   const [metas, setMetas] = useState<Record<string, TabMeta>>({});
   const handles = useRef(new Map<string, EditorHandle>());
+  // The start screen covers the open labels; they stay open underneath.
+  const [home, setHome] = useState(() => loadSettings().showStart);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -87,8 +92,8 @@ export function App() {
   const connected = status === "connected" || status === "printing";
   const activeMeta = metas[activeId];
 
-  const state = useRef({ tabs, activeId, metas });
-  state.current = { tabs, activeId, metas };
+  const state = useRef({ tabs, activeId, metas, home });
+  state.current = { tabs, activeId, metas, home };
 
   const onMeta = useCallback((id: string, meta: TabMeta) => setMetas((m) => ({ ...m, [id]: meta })), []);
   const onHandle = useCallback((id: string, handle: EditorHandle | null) => {
@@ -106,10 +111,10 @@ export function App() {
   }, [tabs, activeId, split]);
 
   useEffect(() => {
-    const text = `${activeMeta?.dirty ? "• " : ""}${activeMeta?.title ?? "Untitled"} — LabelPad`;
+    const text = home ? "LabelPad" : `${activeMeta?.dirty ? "• " : ""}${activeMeta?.title ?? "Untitled"} — LabelPad`;
     document.title = text;
     getCurrentWindow().setTitle(text).catch(() => undefined);
-  }, [activeMeta?.title, activeMeta?.dirty]);
+  }, [home, activeMeta?.title, activeMeta?.dirty]);
 
   // Keep the saved darkness within what this printer supports.
   useEffect(() => {
@@ -127,6 +132,7 @@ export function App() {
     if (replace) forgetDraft(current.id);
     setTabs(replace ? tabs.map((t) => (t.id === current.id ? tab : t)) : [...tabs, tab]);
     setActiveId(tab.id);
+    setHome(false);
     return tab.id;
   }, []);
 
@@ -136,9 +142,13 @@ export function App() {
       const open = state.current.tabs.find((t) => state.current.metas[t.id]?.path === path);
       if (open) {
         setActiveId(open.id);
+        setHome(false);
+        rememberRecent(path);
         return open.id;
       }
-      return addTab({ doc: await readLabel(path), path, dirty: false });
+      const doc = await readLabel(path);
+      rememberRecent(path);
+      return addTab({ doc, path, dirty: false });
     },
     [addTab],
   );
@@ -158,7 +168,7 @@ export function App() {
   );
 
   const openFile = useCallback(async () => {
-    const chosen = await open({ filters: FILE_FILTERS, multiple: true, directory: false });
+    const chosen = await open({ filters: FILE_FILTERS, multiple: true, directory: false, defaultPath: await startFolder(loadSettings()) });
     if (chosen) await openPaths(Array.isArray(chosen) ? chosen : [chosen]);
   }, [openPaths]);
 
@@ -179,13 +189,16 @@ export function App() {
     if (await handles.current.get(id)?.confirmDiscard()) removeTab(id);
   }, []);
 
-  /** Close a tab without asking. The last tab is replaced by a blank label. */
+  /** Close a tab without asking. The last tab is replaced by a blank label, or the start screen if it's on. */
   const removeTab = (id: string) => {
     forgetDraft(id);
     const { tabs } = state.current;
     const i = tabs.findIndex((t) => t.id === id);
     const rest = tabs.filter((t) => t.id !== id);
-    if (!rest.length) rest.push(freshTab());
+    if (!rest.length) {
+      rest.push(freshTab());
+      if (loadSettings().showStart) setHome(true);
+    }
     setTabs(rest);
     setActiveId(rest[Math.min(i, rest.length - 1)].id);
   };
@@ -210,13 +223,15 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
-      const { tabs, activeId } = state.current;
+      const { tabs, activeId, home } = state.current;
       if (mod && key === "n") {
         e.preventDefault();
         setGalleryOpen(true);
       } else if (mod && key === "o") {
         e.preventDefault();
         void openFile();
+      } else if (home) {
+        // The labels underneath aren't showing; leave them be.
       } else if (mod && key === "w") {
         e.preventDefault();
         void closeTab(activeId);
@@ -234,6 +249,9 @@ export function App() {
     setGalleryOpen(false);
     addTab({ doc: fromTemplate(template), path: null, dirty: false });
   };
+
+  /** Labels open underneath the start screen, not counting an untouched starter label. */
+  const openCount = tabs.filter((t) => !(t.fresh && !metas[t.id]?.dirty && !metas[t.id]?.path)).length;
 
   /** Pick a printer from the ones the scan finds. */
   const choosePrinter = () => {
@@ -296,12 +314,19 @@ export function App() {
       let id = "";
       flushSync(() => {
         const open = state.current.tabs.find((t) => state.current.metas[t.id]?.path === path);
-        if (open) setActiveId((id = open.id));
-        else id = addTab({ doc, path, dirty: false });
+        if (open) {
+          setActiveId((id = open.id));
+          setHome(false);
+        } else id = addTab({ doc, path, dirty: false });
       });
+      rememberRecent(path);
       return id;
     },
-    selectTab: (id) => flushSync(() => setActiveId(id)),
+    selectTab: (id) =>
+      flushSync(() => {
+        setActiveId(id);
+        setHome(false);
+      }),
     closeTab: (id) => flushSync(() => removeTab(id)),
   };
   useMcpServer(mcpHost);
@@ -324,12 +349,17 @@ export function App() {
             <Printer size={18} />
           </span>
           LabelPad
-          <span className="doc-title" title={activeMeta?.path ?? undefined}>
-            {activeMeta?.title ?? "Untitled"}
-            {activeMeta?.dirty && <span className="dirty" aria-label="Unsaved changes" />}
-          </span>
+          {!home && (
+            <span className="doc-title" title={activeMeta?.path ?? undefined}>
+              {activeMeta?.title ?? "Untitled"}
+              {activeMeta?.dirty && <span className="dirty" aria-label="Unsaved changes" />}
+            </span>
+          )}
         </div>
         <div className="topbar-center">
+          <button className={`icon-button${home ? " on" : ""}`} onClick={() => setHome(true)} title="Start screen">
+            <House size={18} />
+          </button>
           <button className="icon-button" onClick={() => setGalleryOpen(true)} title="New label (Ctrl+N)">
             <FilePlus2 size={18} />
           </button>
@@ -356,7 +386,21 @@ export function App() {
         </div>
       </header>
 
-      <nav className="tabbar" aria-label="Open labels">
+      <StartScreen
+        open={home}
+        size={settings.labelSize}
+        printer={settings.printer}
+        openCount={openCount}
+        showAtLaunch={settings.showStart}
+        onShowAtLaunch={(showStart) => updateSettings({ showStart })}
+        onNew={(size) => addTab({ doc: { version: 1, printer: settings.printer, size, elements: [] }, path: null, dirty: false })}
+        onTemplates={() => setGalleryOpen(true)}
+        onOpenFile={() => void openFile()}
+        onOpenRecent={(path) => void openPaths([path])}
+        onContinue={() => setHome(false)}
+      />
+
+      <nav className="tabbar" aria-label="Open labels" hidden={home}>
         <div className="tabs" role="tablist">
           {tabs.map((t) => {
             const meta = metas[t.id];
@@ -388,6 +432,7 @@ export function App() {
 
       <main
         className={`workspace${dropping ? " dropping" : ""}`}
+        hidden={home}
         onDragOver={(e) => {
           if (!canDrop(e)) return;
           e.preventDefault();
@@ -411,7 +456,7 @@ export function App() {
               key={t.id}
               tabId={t.id}
               initial={t.initial}
-              active={t.id === activeId}
+              active={t.id === activeId && !home}
               split={split && tabs.length > 1}
               slots={slots}
               printer={printer}
