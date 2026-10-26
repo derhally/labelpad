@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.0](https://github.com/derhally/labelpad/compare/v0.5.0...v0.6.0) (2026-10-26)
+
+
+### Features
+
+* drop the .niimbot file extension ([2163e23](https://github.com/derhally/labelpad/commit/2163e2381ba8998fec7cecd98be716498a6b00d3))
+* QR code types, and every Lucide icon in the icon picker ([#22](https://github.com/derhally/labelpad/issues/22)) ([c9489a7](https://github.com/derhally/labelpad/commit/c9489a76b8feb62313994cba325fd1da6c67bac1))
+* roomier settings window that shows the running version ([#24](https://github.com/derhally/labelpad/issues/24)) ([cabe7c0](https://github.com/derhally/labelpad/commit/cabe7c0086941344be26f8b4f47f53e411af332d))
+* save labels to Documents\LabelPad by default, with a folder setting ([2163e23](https://github.com/derhally/labelpad/commit/2163e2381ba8998fec7cecd98be716498a6b00d3))
+* start screen with new label and the 10 most recently modified labels ([2163e23](https://github.com/derhally/labelpad/commit/2163e2381ba8998fec7cecd98be716498a6b00d3))
+
 ## [0.5.0](https://github.com/derhally/labelpad/compare/v0.4.0...v0.5.0) (2026-10-25)
 
 
