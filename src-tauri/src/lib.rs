@@ -238,6 +238,20 @@ fn templates_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     Ok(dir)
 }
 
+/// Documents/LabelPad, where labels are saved unless you pick another folder. Linux without
+/// an XDG documents folder uses ~/LabelPad.
+fn labels_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    let paths = app.path();
+    let dir = paths.document_dir().or_else(|_| paths.home_dir()).map_err(|e| e.to_string())?.join("LabelPad");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Couldn't create the labels folder {}: {e}", dir.display()))?;
+    Ok(dir)
+}
+
+#[tauri::command]
+fn labels_folder(app: AppHandle) -> Result<String, String> {
+    labels_dir(&app).map(|d| d.to_string_lossy().into_owned())
+}
+
 /// Template ids are file names, so keep them to one safe path component.
 fn template_path(app: &AppHandle, id: &str) -> Result<std::path::PathBuf, String> {
     if id.is_empty() || id.contains(['/', '\\', ':']) || id.starts_with('.') {
@@ -372,6 +386,10 @@ pub fn run() {
                 }
                 window.show()?;
             }
+            // The installer makes the labels folder on Windows; this covers other installs.
+            if let Err(e) = labels_dir(app.handle()) {
+                log::warn!("{e}");
+            }
             Ok(())
         })
         .manage(Printer::default())
@@ -389,6 +407,7 @@ pub fn run() {
             label_read,
             label_write,
             label_modified,
+            labels_folder,
             system_fonts,
             templates_list,
             template_save,

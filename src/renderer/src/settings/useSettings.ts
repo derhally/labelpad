@@ -29,6 +29,11 @@ export type Settings = {
   /** When releases were last checked (ms since epoch). */
   lastUpdateCheck: number | null;
   zoom: Zoom;
+  /** Folder labels are saved to; null for Documents\LabelPad. */
+  saveFolder: string | null;
+  /** Start Save and Open in the folder last saved to, instead of the save folder. */
+  rememberLastFolder: boolean;
+  lastFolder: string | null;
 };
 
 const KEY = "labelpad.settings";
@@ -47,6 +52,9 @@ const DEFAULTS: Settings = {
   autoUpdate: true,
   lastUpdateCheck: null,
   zoom: "fit",
+  saveFolder: null,
+  rememberLastFolder: true,
+  lastFolder: null,
 };
 
 export function loadSettings(): Settings {

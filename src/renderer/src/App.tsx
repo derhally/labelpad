@@ -18,6 +18,7 @@ import { TemplateGallery } from "./components/TemplateGallery";
 import { fromTemplate } from "./editor/templates";
 import { starterDoc } from "./editor/defaults";
 import { FILE_FILTERS } from "./editor/labelFile";
+import { startFolder } from "./editor/folders";
 import { rememberRecent } from "./editor/recent";
 import { newId } from "./editor/types";
 import { forgetDraft, loadDraft, readLabel, type Draft } from "./editor/useLabelFile";
@@ -167,7 +168,7 @@ export function App() {
   );
 
   const openFile = useCallback(async () => {
-    const chosen = await open({ filters: FILE_FILTERS, multiple: true, directory: false });
+    const chosen = await open({ filters: FILE_FILTERS, multiple: true, directory: false, defaultPath: await startFolder(loadSettings()) });
     if (chosen) await openPaths(Array.isArray(chosen) ? chosen : [chosen]);
   }, [openPaths]);
 

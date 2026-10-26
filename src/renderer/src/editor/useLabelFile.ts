@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { dirname, join } from "@tauri-apps/api/path";
 import { ask, message, save } from "@tauri-apps/plugin-dialog";
 import { rememberRecent } from "./recent";
 import { FILE_EXTENSION, FILE_FILTERS, fileTitle, parseLabel, serializeLabel } from "./labelFile";
@@ -36,13 +37,18 @@ export async function readLabel(path: string): Promise<LabelDoc> {
 
 type Editor = { doc: LabelDoc };
 
+/** Where Save As starts, and what to do once a label is saved to a folder. */
+export type Folders = { start: () => Promise<string | undefined>; saved: (folder: string) => void };
+
 /**
  * Save and save-as for one tab's label, the unsaved changes prompt, and a
  * draft so the next start can pick up where you left off.
  */
-export function useLabelFile(editor: Editor, opts: { tabId: string; initialPath: string | null; initialDirty: boolean }) {
+export function useLabelFile(editor: Editor, opts: { tabId: string; initialPath: string | null; initialDirty: boolean; folders: Folders }) {
   const { doc } = editor;
   const { tabId } = opts;
+  const folders = useRef(opts.folders);
+  folders.current = opts.folders;
   const [path, setPath] = useState<string | null>(opts.initialPath);
   // The document as last saved or opened. Undo returns the same object, so
   // undoing back to it clears the unsaved mark.
@@ -83,6 +89,7 @@ export function useLabelFile(editor: Editor, opts: { tabId: string; initialPath:
     setPath(target);
     setSaved(current);
     rememberRecent(target);
+    dirname(target).then(folders.current.saved, () => undefined);
   }, []);
 
   const write = useCallback(
@@ -99,7 +106,11 @@ export function useLabelFile(editor: Editor, opts: { tabId: string; initialPath:
   );
 
   const saveAs = useCallback(async () => {
-    const chosen = await save({ filters: FILE_FILTERS, defaultPath: `${state.current.path ? fileTitle(state.current.path) : "Label"}.${FILE_EXTENSION}` });
+    // A saved label starts next to itself; a new one in the labels folder.
+    const current = state.current.path;
+    const name = `${current ? fileTitle(current) : "Label"}.${FILE_EXTENSION}`;
+    const folder = current ? await dirname(current) : await folders.current.start();
+    const chosen = await save({ filters: FILE_FILTERS, defaultPath: folder ? await join(folder, name) : name });
     if (!chosen) return false;
     return write(chosen.toLowerCase().endsWith(`.${FILE_EXTENSION}`) ? chosen : `${chosen}.${FILE_EXTENSION}`);
   }, [write]);
