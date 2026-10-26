@@ -7,7 +7,7 @@ const FORMAT = "labelpad-label";
 /** Marker and extension from before the app was renamed; such files still open. */
 const OLD_FORMAT = "niimbot-studio-label";
 export const FILE_EXTENSION = "labelpad";
-export const FILE_FILTERS = [{ name: "LabelPad label", extensions: [FILE_EXTENSION, "niimbot"] }];
+export const FILE_FILTERS = [{ name: "LabelPad label", extensions: [FILE_EXTENSION] }];
 
 const TYPES: ElementType[] = ["text", "image", "barcode", "qr", "icon", "shape"];
 
@@ -61,7 +61,7 @@ export function parseLabel(text: string): LabelDoc {
 /** "C:\labels\Shelf.labelpad" → "Shelf". */
 export function fileTitle(path: string): string {
   const name = path.split(/[\\/]/).pop() ?? path;
-  return name.replace(/\.(labelpad|niimbot)$/i, "");
+  return name.replace(/\.labelpad$/i, "");
 }
 
 function isObject(v: unknown): v is Record<string, unknown> {

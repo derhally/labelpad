@@ -264,9 +264,15 @@ fn template_path(app: &AppHandle, id: &str) -> Result<std::path::PathBuf, String
 async fn templates_list(app: AppHandle) -> Result<Vec<Template>, String> {
     let mut out = Vec::new();
     for entry in std::fs::read_dir(templates_dir(&app)?).map_err(|e| e.to_string())?.flatten() {
-        let path = entry.path();
-        // .niimbot is what templates were saved as before the rename.
-        if path.extension().is_some_and(|e| e == "labelpad" || e == "niimbot") {
+        let mut path = entry.path();
+        // Templates were saved as .niimbot before the rename; move them over so they're kept.
+        if path.extension().is_some_and(|e| e == "niimbot") {
+            let renamed = path.with_extension("labelpad");
+            if !renamed.exists() && std::fs::rename(&path, &renamed).is_ok() {
+                path = renamed;
+            }
+        }
+        if path.extension().is_some_and(|e| e == "labelpad") {
             if let (Some(id), Ok(contents)) = (path.file_stem().and_then(|s| s.to_str()), std::fs::read_to_string(&path)) {
                 out.push(Template { id: id.to_string(), contents });
             }
@@ -300,7 +306,7 @@ async fn template_delete(app: AppHandle, id: String) -> Result<(), String> {
 struct OpenedFiles(std::sync::Mutex<Vec<String>>);
 
 fn is_label_file(path: &std::path::Path) -> bool {
-    path.is_file() && path.extension().is_some_and(|e| e.eq_ignore_ascii_case("labelpad") || e.eq_ignore_ascii_case("niimbot"))
+    path.is_file() && path.extension().is_some_and(|e| e.eq_ignore_ascii_case("labelpad"))
 }
 
 /// Take the label files waiting to be opened. Later ones arrive as `open-files` events.
