@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { EditorHandle, TabMeta } from "../components/LabelEditor";
-import { align, bounds, type AlignEdge, type Box } from "../editor/arrange";
+import { align, bounds, fill, type AlignEdge, type Box } from "../editor/arrange";
 import { makeElement } from "../editor/defaults";
 import { ICON_IDS, POPULAR_IDS } from "../editor/icons";
 import { importImage } from "../editor/importImage";
@@ -596,7 +596,7 @@ export const TOOLS: Tool[] = [
   {
     name: "arrange_element",
     title: "Arrange element",
-    description: "Move an element in front of or behind others, or line it up with the label's center or the edges of its 1 mm safe margin.",
+    description: "Move an element in front of or behind others, line it up with the label's center or the edges of its 1 mm safe margin, or resize it to fill the safe margin.",
     inputSchema: {
       type: "object",
       properties: {
@@ -605,6 +605,11 @@ export const TOOLS: Tool[] = [
         order: { type: "string", enum: ["front", "back", "forward", "backward"] },
         horizontal: { type: "string", enum: ["left", "center", "right"], description: "Line up with the safe margin's left edge, the label's center, or the safe margin's right edge." },
         vertical: { type: "string", enum: ["top", "middle", "bottom"] },
+        fill: {
+          type: "string",
+          enum: ["both", "width", "height"],
+          description: "Resize to fill the safe margin across, down, or both, centered. QR codes, icons and images keep their shape and grow as large as fits. Applied before horizontal and vertical.",
+        },
       },
       required: ["id"],
     },
@@ -615,6 +620,9 @@ export const TOOLS: Tool[] = [
         if (i < 0) throw new Error(`No element with id "${String(args.id)}".`);
         const dots = canvasSize(d.size, profileFor(d));
         let el = d.elements[i];
+        if (args.fill === "both" || args.fill === "width" || args.fill === "height") {
+          el = { ...el, ...fill(el, safeArea(dots), args.fill) } as LabelElement;
+        }
         // Edges line up with the safe-margin guide, as snapping in the window does.
         for (const edge of [args.horizontal, args.vertical]) {
           if (typeof edge === "string" && ["left", "center", "right", "top", "middle", "bottom"].includes(edge)) {

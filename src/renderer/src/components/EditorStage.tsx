@@ -75,6 +75,7 @@ export function EditorStage({
   const gesturing = useRef(false);
   const [fitZoom, setFitZoom] = useState(4);
   const [, forceRender] = useState(0);
+  const freeMove = useAltKey();
 
   // CSS pixels are 1/96 inch, so this shows the label at about the size it prints.
   const actualZoom = 96 / (dotsPerMm * 25.4);
@@ -207,8 +208,24 @@ export function EditorStage({
     );
   };
 
-  // Snap to the edges, the middle, and the safe margin.
+  // Snap to the label's edges, its middle, the safe-margin guide, and the edges
+  // and centres of other items, with equal gaps between items too. Guidelines
+  // are measured from the label's corner, hence the snap container. Hold Alt
+  // to move or resize freely.
   const guideLines = (size: number) => [0, margin, size / 2, size - margin, size].map((d) => d * zoom);
+  const snapProps = {
+    snappable: !freeMove,
+    snapContainer: surfaceRef.current,
+    snapThreshold: 6,
+    snapGap: true,
+    isDisplaySnapDigit: false,
+    isDisplayInnerSnapDigit: false,
+    snapDirections: { top: true, left: true, bottom: true, right: true, center: true, middle: true },
+    elementSnapDirections: { top: true, left: true, bottom: true, right: true, center: true, middle: true },
+    verticalGuidelines: guideLines(width),
+    horizontalGuidelines: guideLines(height),
+    elementGuidelines: guides,
+  };
 
   return (
     <div className="stage-area">
@@ -291,16 +308,9 @@ export function EditorStage({
             keepRatio={keepsAspect(selected)}
             origin={false}
             rotationPosition="top"
-            snappable
-            snapThreshold={6}
+            {...snapProps}
             snapRotationThreshold={4}
             snapRotationDegrees={[0, 90, 180, 270]}
-            isDisplaySnapDigit={false}
-            snapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
-            elementSnapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
-            verticalGuidelines={guideLines(width)}
-            horizontalGuidelines={guideLines(height)}
-            elementGuidelines={guides}
             onDragStart={(e) => {
               startGesture();
               e.set([selected.x * zoom, selected.y * zoom]);
@@ -342,14 +352,7 @@ export function EditorStage({
             target={groupTargets}
             draggable
             passDragArea
-            snappable
-            snapThreshold={6}
-            isDisplaySnapDigit={false}
-            snapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
-            elementSnapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
-            verticalGuidelines={guideLines(width)}
-            horizontalGuidelines={guideLines(height)}
-            elementGuidelines={guides}
+            {...snapProps}
             onDragGroupStart={(e) => {
               startGesture();
               e.events.forEach((ev) => {
@@ -409,6 +412,24 @@ export function EditorStage({
       </div>
     </div>
   );
+}
+
+/** Whether Alt (Option on a Mac) is held down. */
+function useAltKey(): boolean {
+  const [down, setDown] = useState(false);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => setDown(e.altKey);
+    const blur = () => setDown(false);
+    window.addEventListener("keydown", key);
+    window.addEventListener("keyup", key);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("keydown", key);
+      window.removeEventListener("keyup", key);
+      window.removeEventListener("blur", blur);
+    };
+  }, []);
+  return down;
 }
 
 function normalizeAngle(deg: number): number {
