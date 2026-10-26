@@ -9,6 +9,7 @@
     "build:web": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "cargo test --manifest-path src-tauri/Cargo.toml -p printer --no-default-features",
+    "test:web": "vitest run --root .",
     "gen:protocol": "node scripts/gen-protocol.cjs"
   },
   "author": "Zeid",
@@ -35,6 +36,7 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
     "typescript": "6.0.3",
-    "vite": "8.3.5"
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
   }
 }

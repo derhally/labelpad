@@ -28,4 +28,5 @@ jobs:
       - run: npm run typecheck
       - run: npm run build:web
       - run: npm test
+      - run: npm run test:web
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --workspace -- -D warnings
